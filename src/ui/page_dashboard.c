@@ -191,7 +191,8 @@ build_monitor_card(DashCtx *ctx, gsize n_cores)
                 gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(grid),
                                                        per_line);
                 gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(grid),
-                                                       per_line);
+                                                       per_line < 4 ? per_line
+                                                                    : 4);
                 gtk_widget_add_css_class(grid, "rv-row");
 
                 ctx->core_bars =
@@ -209,7 +210,6 @@ build_monitor_card(DashCtx *ctx, gsize n_cores)
                         bar = gtk_progress_bar_new();
                         gtk_widget_add_css_class(bar, "rv-core-bar");
                         gtk_widget_set_hexpand(bar, TRUE);
-                        gtk_widget_set_size_request(bar, 90, -1);
 
                         gtk_box_append(GTK_BOX(cell), label);
                         gtk_box_append(GTK_BOX(cell), bar);
