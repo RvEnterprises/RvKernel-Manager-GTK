@@ -17,6 +17,7 @@ build/
 .directory
 
 # Tooling
+AGENTS.md
 compile_commands.json
 .clangd/
 .cache/
