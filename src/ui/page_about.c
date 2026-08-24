@@ -69,6 +69,18 @@ rv_page_about_new(GtkWidget *window)
         g_free(desc);
         rv_card_add(card, row);
 
+        row = rv_kv_row("Developer");
+        rv_kv_set(row, "%s", "Rve");
+        rv_card_add(card, row);
+
+        row = rv_kv_row("Organization");
+        rv_kv_set(row, "%s", "RvEnterprises");
+        rv_card_add(card, row);
+
+        row = rv_kv_row("Project");
+        rv_kv_set(row, "github.com/RvEnterprises/RvKernel-Manager-GTK");
+        rv_card_add(card, row);
+
         row = rv_kv_row("Original project");
         rv_kv_set(row, "github.com/Rve27/RvKernel-Manager");
         rv_card_add(card, row);

@@ -68,7 +68,7 @@ static void
 show_about(GtkWidget *window)
 {
         GtkAboutDialog *about;
-        const gchar *authors[] = { "Rve27", NULL };
+        const gchar *authors[] = { "Rve", NULL };
 
         about = GTK_ABOUT_DIALOG(gtk_about_dialog_new());
         gtk_about_dialog_set_program_name(about, RV_APP_NAME);
@@ -79,11 +79,12 @@ show_about(GtkWidget *window)
                 "frequencies, GPU devfreq devices, battery health and "
                 "charge limits, memory tunables and thermal zones.");
         gtk_about_dialog_set_website(
-                about, "https://github.com/Rve27/RvKernel-Manager");
+                about, "https://github.com/RvEnterprises/RvKernel-Manager-GTK");
         gtk_about_dialog_set_website_label(
-                about, "github.com/Rve27/RvKernel-Manager");
+                about, "github.com/RvEnterprises/RvKernel-Manager-GTK");
         gtk_about_dialog_set_license_type(about, GTK_LICENSE_GPL_3_0);
-        gtk_about_dialog_set_copyright(about, "Copyright (C) 2026 Rve");
+        gtk_about_dialog_set_copyright(about,
+                                       "Copyright (C) 2026 RvEnterprises");
         gtk_about_dialog_set_authors(about, authors);
         gtk_about_dialog_set_logo_icon_name(about, RV_APP_ID);
 
