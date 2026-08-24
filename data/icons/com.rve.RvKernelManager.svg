@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7c4dff"/>
+      <stop offset="1" stop-color="#4527a0"/>
+    </linearGradient>
+    <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e8eaf6"/>
+      <stop offset="1" stop-color="#c5cae9"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bg)"/>
+  <g stroke="url(#chip)" stroke-width="6" stroke-linecap="round" fill="none">
+    <line x1="46" y1="26" x2="46" y2="38"/>
+    <line x1="64" y1="26" x2="64" y2="38"/>
+    <line x1="82" y1="26" x2="82" y2="38"/>
+    <line x1="46" y1="90" x2="46" y2="102"/>
+    <line x1="64" y1="90" x2="64" y2="102"/>
+    <line x1="82" y1="90" x2="82" y2="102"/>
+    <line x1="26" y1="46" x2="38" y2="46"/>
+    <line x1="26" y1="64" x2="38" y2="64"/>
+    <line x1="26" y1="82" x2="38" y2="82"/>
+    <line x1="90" y1="46" x2="102" y2="46"/>
+    <line x1="90" y1="64" x2="102" y2="64"/>
+    <line x1="90" y1="82" x2="102" y2="82"/>
+  </g>
+  <rect x="40" y="40" width="48" height="48" rx="10" fill="url(#chip)"/>
+  <text x="64" y="73" font-family="'Cantarell','DejaVu Sans',sans-serif" font-size="24" font-weight="bold" fill="#4527a0" text-anchor="middle">Rv</text>
+</svg>

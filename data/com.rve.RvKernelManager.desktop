@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=RvKernel Manager
+GenericName=Kernel Manager
+Comment=Monitor and tune your Linux kernel
+Exec=rvkernel-manager
+Icon=com.rve.RvKernelManager
+Terminal=false
+Categories=System;Utility;GTK;
+Keywords=kernel;cpu;gpu;battery;zram;thermal;tuning;performance;
+StartupNotify=true
+Actions=root;
+
+[Desktop Action root]
+Name=Launch as root
+Exec=pkexec rvkernel-manager
+Icon=com.rve.RvKernelManager
