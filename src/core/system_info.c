@@ -51,25 +51,32 @@ read_cpu_model(void)
         gchar *content;
         gchar **lines;
         gchar *result = NULL;
-        gsize i, j;
+        gsize best = G_N_ELEMENTS(keys);
 
         content = read_trimmed("/proc/cpuinfo");
         if (content == NULL)
                 return g_strdup("Unknown");
 
         lines = g_strsplit(content, "\n", -1);
-        for (j = 0; j < G_N_ELEMENTS(keys) && result == NULL; j++) {
-                for (i = 0; lines[i] != NULL; i++) {
-                        const gchar *colon;
-                        if (!g_str_has_prefix(lines[i], keys[j]))
+        for (gsize i = 0; lines[i] != NULL && best > 0; i++) {
+                const gchar *colon;
+                gchar *value;
+
+                for (gsize k = 0; k < best; k++) {
+                        if (!g_str_has_prefix(lines[i], keys[k]))
                                 continue;
                         colon = strchr(lines[i], ':');
                         if (colon == NULL)
                                 continue;
-                        result = g_strdup(g_strstrip((gchar *)colon + 1));
-                        if (result[0] != '\0')
-                                break;
-                        g_clear_pointer(&result, g_free);
+                        value = g_strdup(g_strstrip((gchar *)colon + 1));
+                        if (value[0] == '\0') {
+                                g_free(value);
+                                continue;
+                        }
+                        g_free(result);
+                        result = value;
+                        best = k;
+                        break;
                 }
         }
         g_strfreev(lines);
@@ -196,16 +203,19 @@ system_info_get(void)
 
         meminfo = read_trimmed("/proc/meminfo");
         if (meminfo != NULL) {
+                const char *names[] = { "MemTotal:", "MemAvailable:",
+                                        "SwapTotal:", "SwapFree:" };
+                guint64 *slots[] = { &info->mem_total_kb,
+                                     &info->mem_available_kb,
+                                     &info->swap_total_kb,
+                                     &info->swap_free_kb };
+                gsize found = 0;
+
                 lines = g_strsplit(meminfo, "\n", -1);
-                for (gsize i = 0; lines[i] != NULL; i++) {
+                for (gsize i = 0; lines[i] != NULL && found < 4; i++) {
                         guint64 kb;
                         const gchar *colon;
-                        const char *names[] = { "MemTotal:", "MemAvailable:",
-                                                "SwapTotal:", "SwapFree:" };
-                        guint64 *slots[] = { &info->mem_total_kb,
-                                             &info->mem_available_kb,
-                                             &info->swap_total_kb,
-                                             &info->swap_free_kb };
+
                         for (gint k = 0; k < 4; k++) {
                                 if (!g_str_has_prefix(lines[i], names[k]))
                                         continue;
@@ -214,6 +224,7 @@ system_info_get(void)
                                         continue;
                                 kb = g_ascii_strtoull(colon + 1, NULL, 10);
                                 *slots[k] = kb;
+                                found++;
                         }
                 }
                 g_strfreev(lines);
