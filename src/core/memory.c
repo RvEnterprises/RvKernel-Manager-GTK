@@ -80,7 +80,6 @@ rv_zram_refresh(RvZram *z)
                         z->algo = g_strdup(tokens[0]);
                 g_strfreev(tokens);
         }
-        g_free(text);
 
         g_strfreev(z->algos);
         z->algos = NULL;
@@ -102,6 +101,7 @@ rv_zram_refresh(RvZram *z)
         } else {
                 z->algos = g_new0(gchar *, 1);
         }
+        g_free(text);
         g_free(tmp);
 
         tmp = g_build_filename(z->path, "mm_stat", NULL);
