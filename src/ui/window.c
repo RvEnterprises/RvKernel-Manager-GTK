@@ -5,6 +5,10 @@
 #include "../core/system_info.h"
 #include "../util/sysfs.h"
 
+#include <pwd.h>
+#include <string.h>
+#include <unistd.h>
+
 typedef struct {
         GtkWidget *toast_revealer;
         GtkWidget *toast_label;
@@ -84,21 +88,123 @@ theme_name_is_dark(void)
         return dark;
 }
 
+/*
+ * State dir of the user that launched the session. When elevated via
+ * pkexec the environment only forwards XDG_RUNTIME_DIR, so the invoking
+ * user's home is resolved through that uid instead of geteuid().
+ */
+static gchar *
+invoking_state_dir(void)
+{
+        const gchar *env, *runtime_dir;
+        struct passwd *pw;
+        uid_t uid;
+
+        if (geteuid() != 0) {
+                env = g_getenv("XDG_STATE_HOME");
+                if (env != NULL && env[0] != '\0')
+                        return g_strdup(env);
+                return g_build_filename(g_get_home_dir(), ".local",
+                                        "state", NULL);
+        }
+
+        runtime_dir = g_getenv("XDG_RUNTIME_DIR");
+        if (runtime_dir == NULL ||
+            !g_str_has_prefix(runtime_dir, "/run/user/"))
+                return NULL;
+
+        uid = (uid_t)g_ascii_strtoull(runtime_dir + strlen("/run/user/"),
+                                      NULL, 10);
+        if (uid == 0)
+                return NULL;
+
+        pw = getpwuid(uid);
+        if (pw == NULL || pw->pw_dir == NULL || pw->pw_dir[0] == '\0')
+                return NULL;
+
+        return g_build_filename(pw->pw_dir, ".local", "state", NULL);
+}
+
+/* Find "<key>": true/false in a small flat JSON document. */
+static gboolean
+json_bool_value(const gchar *json, const gchar *key, gboolean *value)
+{
+        const gchar *p;
+
+        p = strstr(json, key);
+        if (p == NULL)
+                return FALSE;
+
+        p += strlen(key);
+        while (*p == ' ' || *p == ':' || *p == '\t' ||
+               *p == '\n' || *p == '\r')
+                p++;
+
+        if (g_str_has_prefix(p, "true")) {
+                *value = TRUE;
+                return TRUE;
+        }
+        if (g_str_has_prefix(p, "false")) {
+                *value = FALSE;
+                return TRUE;
+        }
+
+        return FALSE;
+}
+
+/*
+ * DankMaterialShell keeps its light/dark choice in
+ * <state>/DankMaterialShell/session.json as "isLightMode" (default:
+ * false, i.e. dark). This is the only dependable signal on Hyprland
+ * sessions where no portal publishes the color scheme.
+ */
+static gboolean
+dms_read_dark(gboolean *dark)
+{
+        gchar *state_dir, *path, *contents = NULL;
+        gboolean light = FALSE;
+
+        state_dir = invoking_state_dir();
+        if (state_dir == NULL)
+                return FALSE;
+
+        path = g_build_filename(state_dir, "DankMaterialShell",
+                                "session.json", NULL);
+        g_free(state_dir);
+
+        if (!g_file_get_contents(path, &contents, NULL, NULL)) {
+                g_free(path);
+                return FALSE;
+        }
+        g_free(path);
+
+        if (!json_bool_value(contents, "\"isLightMode\"", &light)) {
+                g_free(contents);
+                return FALSE;
+        }
+        g_free(contents);
+
+        *dark = !light;
+        return TRUE;
+}
+
+
 static gboolean
 system_prefers_dark(void)
 {
         GDBusConnection *bus;
         GVariant *reply, *value;
         GError *error = NULL;
+        gboolean dark;
         guint32 scheme = 0;
 
         if (g_getenv("DBUS_SESSION_BUS_ADDRESS") == NULL &&
             g_getenv("XDG_RUNTIME_DIR") == NULL)
-                return theme_name_is_dark();
+                return dms_read_dark(&dark) ? dark : theme_name_is_dark();
 
         bus = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, NULL);
         if (bus == NULL)
-                return theme_name_is_dark();
+                return dms_read_dark(&dark) ? dark : theme_name_is_dark();
 
         reply = g_dbus_connection_call_sync(
                 bus,
@@ -117,7 +223,7 @@ system_prefers_dark(void)
         if (reply == NULL) {
                 g_error_free(error);
                 g_object_unref(bus);
-                return theme_name_is_dark();
+                return dms_read_dark(&dark) ? dark : theme_name_is_dark();
         }
 
         g_variant_get(reply, "(v)", &value);
