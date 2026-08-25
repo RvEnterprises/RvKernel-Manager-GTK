@@ -183,9 +183,6 @@ system_info_get(void)
         if (info->loadavg == NULL)
                 info->loadavg = g_strdup("-");
 
-        info->n_cores = (gsize)(sysconf(_SC_NPROCESSORS_ONLN) > 0 ?
-                                sysconf(_SC_NPROCESSORS_ONLN) : 1);
-
         if (sysinfo(&si) == 0) {
                 info->uptime_s = (guint64)si.uptime;
                 info->mem_total_kb = (guint64)si.totalram * si.mem_unit / 1024;
