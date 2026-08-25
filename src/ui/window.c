@@ -355,6 +355,7 @@ rv_window_new(GtkApplication *app)
         sidebar = rv_sidebar_new();
         gtk_widget_add_css_class(sidebar, "rv-sidebar");
         sidebar_scroll = gtk_scrolled_window_new();
+        gtk_widget_add_css_class(sidebar_scroll, "rv-sidebar-shell");
         gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(sidebar_scroll),
                                       sidebar);
         gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sidebar_scroll),
