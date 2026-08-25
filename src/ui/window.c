@@ -240,11 +240,12 @@ static void
 on_dark_toggled(GtkToggleButton *button, gpointer user_data)
 {
         GtkSettings *settings = gtk_settings_get_default();
+        gboolean dark = gtk_toggle_button_get_active(button);
 
         g_object_set(settings,
-                     "gtk-application-prefer-dark-theme",
-                     gtk_toggle_button_get_active(button),
+                     "gtk-application-prefer-dark-theme", dark,
                      NULL);
+        rv_style_set_dark(dark);
         (void)user_data;
 }
 

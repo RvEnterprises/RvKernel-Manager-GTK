@@ -7,6 +7,8 @@ G_BEGIN_DECLS
 
 void rv_style_init(void);
 
+void rv_style_set_dark(gboolean dark);
+
 G_END_DECLS
 
 #endif
