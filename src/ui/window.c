@@ -193,38 +193,42 @@ dms_read_dark(gboolean *dark)
 static gboolean
 system_prefers_dark(void)
 {
-        GDBusConnection *bus;
-        GVariant *reply, *value;
-        GError *error = NULL;
         gboolean dark;
+
+        if (dms_read_dark(&dark))
+                return dark;
+        return theme_name_is_dark();
+}
+
+typedef struct {
+        GtkWidget *button;
+} SchemeWatch;
+
+static void
+scheme_watch_free(SchemeWatch *watch)
+{
+        if (watch->button != NULL)
+                g_object_remove_weak_pointer(G_OBJECT(watch->button),
+                                             (gpointer *)&watch->button);
+        g_free(watch);
+}
+
+static void
+portal_scheme_done(GObject *source, GAsyncResult *result,
+                   gpointer user_data)
+{
+        GDBusConnection *bus = G_DBUS_CONNECTION(source);
+        GVariant *reply, *value;
+        SchemeWatch *watch = user_data;
+        GError *error = NULL;
         guint32 scheme = 0;
 
-        if (g_getenv("DBUS_SESSION_BUS_ADDRESS") == NULL &&
-            g_getenv("XDG_RUNTIME_DIR") == NULL)
-                return dms_read_dark(&dark) ? dark : theme_name_is_dark();
-
-        bus = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, NULL);
-        if (bus == NULL)
-                return dms_read_dark(&dark) ? dark : theme_name_is_dark();
-
-        reply = g_dbus_connection_call_sync(
-                bus,
-                "org.freedesktop.portal.Desktop",
-                "/org/freedesktop/portal/desktop",
-                "org.freedesktop.portal.Settings",
-                "ReadOne",
-                g_variant_new("(ss)",
-                              "org.freedesktop.appearance",
-                              "color-scheme"),
-                G_VARIANT_TYPE("(v)"),
-                G_DBUS_CALL_FLAGS_NO_AUTO_START,
-                300,
-                NULL,
-                &error);
+        reply = g_dbus_connection_call_finish(bus, result, &error);
         if (reply == NULL) {
                 g_error_free(error);
                 g_object_unref(bus);
-                return dms_read_dark(&dark) ? dark : theme_name_is_dark();
+                scheme_watch_free(watch);
+                return;
         }
 
         g_variant_get(reply, "(v)", &value);
@@ -234,7 +238,59 @@ system_prefers_dark(void)
         g_object_unref(bus);
 
         /* 1 = prefer dark; 0 = no preference and 2 = prefer light. */
-        return scheme == 1;
+        if (watch->button != NULL &&
+            gtk_toggle_button_get_active(
+                    GTK_TOGGLE_BUTTON(watch->button)) != (scheme == 1))
+                gtk_toggle_button_set_active(
+                        GTK_TOGGLE_BUTTON(watch->button), scheme == 1);
+
+        scheme_watch_free(watch);
+}
+
+static void
+session_bus_ready(GObject *source, GAsyncResult *result,
+                  gpointer user_data)
+{
+        GDBusConnection *bus;
+        SchemeWatch *watch = user_data;
+
+        bus = g_bus_get_finish(result, NULL);
+        if (bus == NULL) {
+                scheme_watch_free(watch);
+                return;
+        }
+
+        g_dbus_connection_call(bus,
+                               "org.freedesktop.portal.Desktop",
+                               "/org/freedesktop/portal/desktop",
+                               "org.freedesktop.portal.Settings",
+                               "ReadOne",
+                               g_variant_new("(ss)",
+                                             "org.freedesktop.appearance",
+                                             "color-scheme"),
+                               G_VARIANT_TYPE("(v)"),
+                               G_DBUS_CALL_FLAGS_NO_AUTO_START,
+                               300,
+                               NULL,
+                               portal_scheme_done,
+                               watch);
+}
+
+static void
+portal_scheme_async(GtkWidget *button)
+{
+        SchemeWatch *watch;
+
+        if (g_getenv("DBUS_SESSION_BUS_ADDRESS") == NULL &&
+            g_getenv("XDG_RUNTIME_DIR") == NULL)
+                return;
+
+        watch = g_new0(SchemeWatch, 1);
+        watch->button = button;
+        g_object_add_weak_pointer(G_OBJECT(button),
+                                  (gpointer *)&watch->button);
+
+        g_bus_get(G_BUS_TYPE_SESSION, NULL, session_bus_ready, watch);
 }
 
 static void
@@ -292,6 +348,7 @@ build_headerbar(WindowCtx *ctx, GtkWidget *window)
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dark_btn),
                                      system_prefers_dark());
         gtk_header_bar_pack_end(GTK_HEADER_BAR(header), dark_btn);
+        portal_scheme_async(dark_btn);
 
         return header;
 }
