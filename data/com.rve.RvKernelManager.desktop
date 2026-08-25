@@ -8,7 +8,7 @@ Exec=rvkernel-manager
 Icon=com.rve.RvKernelManager
 Terminal=false
 Categories=System;Utility;GTK;
-Keywords=kernel;cpu;gpu;battery;zram;thermal;tuning;performance;
+Keywords=kernel;cpu;gpu;battery;zram;tuning;performance;
 StartupNotify=true
 Actions=root;
 

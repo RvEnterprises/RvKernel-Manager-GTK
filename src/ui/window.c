@@ -388,8 +388,6 @@ rv_window_new(GtkApplication *app)
                  "battery", "Battery", "battery-symbolic");
         add_page(GTK_STACK(stack), rv_page_memory_new(window),
                  "memory", "Memory", "drive-multidisk-symbolic");
-        add_page(GTK_STACK(stack), rv_page_thermal_new(window),
-                 "thermal", "Thermal", "temperature-symbolic");
         add_page(GTK_STACK(stack), rv_page_about_new(window),
                  "about", "About", "help-about-symbolic");
 

@@ -56,7 +56,7 @@ rv_page_about_new(GtkWidget *window)
         desc = g_strdup_printf(
                 "Desktop port of the Android app: monitor and tune CPU "
                 "governors and frequencies, GPU devfreq devices, battery "
-                "charge limits, memory tunables, ZRAM and thermal zones.");
+                "charge limits, memory tunables and ZRAM.");
         row = rv_kv_row("Description");
         {
                 GtkLabel *value =

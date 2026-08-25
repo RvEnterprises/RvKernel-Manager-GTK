@@ -12,7 +12,6 @@ GtkWidget *rv_page_cpu_new       (GtkWidget *window);
 GtkWidget *rv_page_gpu_new       (GtkWidget *window);
 GtkWidget *rv_page_battery_new   (GtkWidget *window);
 GtkWidget *rv_page_memory_new    (GtkWidget *window);
-GtkWidget *rv_page_thermal_new   (GtkWidget *window);
 GtkWidget *rv_page_about_new     (GtkWidget *window);
 
 void       rv_page_set_refresh   (GtkWidget       *page,

@@ -20,8 +20,6 @@ clean interface to tweak and monitor a wide range of kernel parameters.
 - **Memory** — vm tunables (`swappiness`, `vfs_cache_pressure`,
   `dirty_ratio`, `dirty_background_ratio`), ZRAM size/algorithm/usage and
   TCP congestion-control selection.
-- **Thermal** — thermal zone temperatures, cooling device states and
-  zone mode switching when available.
 - **About** — version info, license and links.
 
 ## Requirements
@@ -60,7 +58,6 @@ src/
 │   ├── page_gpu.c       DRM/devfreq controls
 │   ├── page_battery.c   battery monitoring + charge limit
 │   ├── page_memory.c    vm tunables / zram / tcp cc
-│   ├── page_thermal.c   thermal zones + cooling devices
 │   └── page_about.c     about page
 ├── core/                business logic (no UI types)
 │   ├── system_info.[ch] host/kernel/memory snapshots, cpu usage sampler
@@ -68,7 +65,6 @@ src/
 │   ├── gpu.[ch]         drm cards + devfreq devices
 │   ├── battery.[ch]     power_supply parsing + charge control
 │   ├── memory.[ch]      vm sysctls, zram, tcp congestion control
-│   └── thermal.[ch]     thermal zones + cooling devices
 └── util/
     ├── sysfs.[ch]       sysfs/procfs read/write helpers
     └── format.[ch]      string tokenizing + human formatting
