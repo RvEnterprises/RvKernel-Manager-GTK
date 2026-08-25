@@ -15,6 +15,16 @@ typedef struct {
         gint64  start_time;
         guint   tick_id;
         gchar  *text;
+
+        PangoLayout *value_layout;
+        PangoLayout *caption_layout;
+        gchar  *layout_value;
+        guint   font_stamp;
+        gint    cache_side;
+        gint    value_w;
+        gint    value_h;
+        gint    caption_w;
+        gint    caption_h;
 } CPIState;
 
 static void
@@ -22,6 +32,9 @@ cpi_state_free(gpointer data)
 {
         CPIState *state = data;
 
+        g_clear_pointer(&state->value_layout, g_object_unref);
+        g_clear_pointer(&state->caption_layout, g_object_unref);
+        g_free(state->layout_value);
         g_free(state->text);
         g_free(state);
 }
@@ -57,12 +70,75 @@ cpi_tick(GtkWidget *widget, GdkFrameClock *clock, gpointer user_data)
 }
 
 static void
+cpi_build_layouts(CPIState *state, GtkWidget *widget, gint side,
+                  const gchar *value, const gchar *caption)
+{
+        PangoContext *ctx;
+        PangoFontDescription *base;
+        PangoFontDescription *desc;
+
+        ctx = gtk_widget_get_pango_context(widget);
+        base = pango_context_get_font_description(ctx);
+        state->font_stamp =
+                base != NULL ? pango_font_description_hash(base) : 0;
+
+        desc = base != NULL ? pango_font_description_copy(base) :
+                              pango_font_description_new();
+
+        if (state->value_layout == NULL) {
+                state->value_layout =
+                        gtk_widget_create_pango_layout(widget, NULL);
+                pango_layout_set_alignment(state->value_layout,
+                                           PANGO_ALIGN_CENTER);
+        }
+        pango_font_description_set_weight(desc, PANGO_WEIGHT_BOLD);
+        pango_font_description_set_absolute_size(
+                desc, side * 0.20 * PANGO_SCALE);
+        pango_layout_set_font_description(state->value_layout, desc);
+        pango_layout_set_text(state->value_layout, value, -1);
+        pango_layout_get_pixel_size(state->value_layout,
+                                    &state->value_w, &state->value_h);
+
+        if (state->caption_layout == NULL) {
+                state->caption_layout =
+                        gtk_widget_create_pango_layout(widget, NULL);
+                pango_layout_set_alignment(state->caption_layout,
+                                           PANGO_ALIGN_CENTER);
+        }
+        pango_font_description_set_weight(desc, PANGO_WEIGHT_NORMAL);
+        pango_font_description_set_absolute_size(
+                desc, side * 0.105 * PANGO_SCALE);
+        pango_layout_set_font_description(state->caption_layout, desc);
+        pango_layout_set_text(state->caption_layout,
+                              caption != NULL ? caption : "", -1);
+        pango_layout_get_pixel_size(state->caption_layout,
+                                    &state->caption_w,
+                                    &state->caption_h);
+
+        pango_font_description_free(desc);
+
+        g_free(state->layout_value);
+        state->layout_value = g_strdup(value);
+        state->cache_side = side;
+}
+
+static void
+cpi_update_value_text(CPIState *state, const gchar *value)
+{
+        g_free(state->layout_value);
+        state->layout_value = g_strdup(value);
+
+        pango_layout_set_text(state->value_layout, value, -1);
+        pango_layout_get_pixel_size(state->value_layout,
+                                    &state->value_w, &state->value_h);
+}
+
+static void
 cpi_draw(GtkDrawingArea *area, cairo_t *cr, gint width, gint height,
            gpointer user_data)
 {
         PangoContext *pango_ctx;
-        PangoFontDescription *desc;
-        PangoLayout *layout;
+        PangoFontDescription *font_desc;
         GtkWidget *widget;
         GdkRGBA color;
         GdkRGBA dim;
@@ -70,7 +146,8 @@ cpi_draw(GtkDrawingArea *area, cairo_t *cr, gint width, gint height,
         gchar value_buf[G_ASCII_DTOSTR_BUF_SIZE];
         const gchar *value, *caption;
         gdouble center_x, center_y, radius, stroke, sweep;
-        gint side, tw, th;
+        guint stamp;
+        gint side;
 
         (void)user_data;
 
@@ -88,9 +165,20 @@ cpi_draw(GtkDrawingArea *area, cairo_t *cr, gint width, gint height,
                 value = value_buf;
         }
 
+        side = MIN(width, height);
+        pango_ctx = gtk_widget_get_pango_context(widget);
+        font_desc = pango_context_get_font_description(pango_ctx);
+        stamp = font_desc != NULL ?
+                pango_font_description_hash(font_desc) : 0;
+
+        if (state->value_layout == NULL || state->caption_layout == NULL ||
+            state->cache_side != side || state->font_stamp != stamp)
+                cpi_build_layouts(state, widget, side, value, caption);
+        else if (g_strcmp0(state->layout_value, value) != 0)
+                cpi_update_value_text(state, value);
+
         gtk_widget_get_color(widget, &color);
 
-        side = MIN(width, height);
         stroke = MAX(9.0, side * 0.085);
         radius = side / 2.0 - stroke / 2.0 - 1.0;
         center_x = width / 2.0;
@@ -119,58 +207,21 @@ cpi_draw(GtkDrawingArea *area, cairo_t *cr, gint width, gint height,
                 cairo_stroke(cr);
         }
 
-        pango_ctx = gtk_widget_get_pango_context(widget);
-        desc = pango_font_description_copy(
-                pango_context_get_font_description(pango_ctx));
-
-        pango_font_description_set_weight(desc, PANGO_WEIGHT_BOLD);
-        pango_font_description_set_absolute_size(
-                desc, side * 0.20 * PANGO_SCALE);
-        layout = gtk_widget_create_pango_layout(widget, NULL);
-        pango_layout_set_font_description(layout, desc);
-        pango_layout_set_text(layout, value, -1);
-        pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
-        pango_layout_get_pixel_size(layout, &tw, &th);
-
         {
-                PangoLayout *caption_layout;
-                gint ctw, cth;
-                gdouble block_h, text_y;
-
-                pango_font_description_set_weight(
-                        desc, PANGO_WEIGHT_NORMAL);
-                pango_font_description_set_absolute_size(
-                        desc, side * 0.105 * PANGO_SCALE);
-                caption_layout =
-                        gtk_widget_create_pango_layout(widget, NULL);
-                pango_layout_set_font_description(caption_layout,
-                                                  desc);
-                pango_layout_set_text(caption_layout,
-                                      caption != NULL ? caption : "",
-                                      -1);
-                pango_layout_set_alignment(caption_layout,
-                                           PANGO_ALIGN_CENTER);
-                pango_layout_get_pixel_size(caption_layout,
-                                            &ctw, &cth);
-
-                block_h = th + side * 0.02 + cth;
-                text_y = center_y - block_h / 2.0;
+                gdouble block_h = state->value_h + side * 0.02 +
+                                  state->caption_h;
+                gdouble text_y = center_y - block_h / 2.0;
 
                 gdk_cairo_set_source_rgba(cr, &color);
-                cairo_move_to(cr, center_x - tw / 2.0, text_y);
-                pango_cairo_show_layout(cr, layout);
+                cairo_move_to(cr, center_x - state->value_w / 2.0,
+                              text_y);
+                pango_cairo_show_layout(cr, state->value_layout);
 
                 gdk_cairo_set_source_rgba(cr, &dim);
-                cairo_move_to(cr, center_x - ctw / 2.0,
-                              text_y + th + side * 0.02);
-                pango_cairo_show_layout(cr, caption_layout);
-
-                g_object_unref(caption_layout);
+                cairo_move_to(cr, center_x - state->caption_w / 2.0,
+                              text_y + state->value_h + side * 0.02);
+                pango_cairo_show_layout(cr, state->caption_layout);
         }
-
-        g_object_unref(layout);
-
-        pango_font_description_free(desc);
 }
 
 GtkWidget *
@@ -239,6 +290,11 @@ circular_progress_indicator_set_text(GtkWidget *self, const gchar *fmt, ...)
         va_start(args, fmt);
         text = g_strdup_vprintf(fmt, args);
         va_end(args);
+
+        if (g_strcmp0(state->text, text) == 0) {
+                g_free(text);
+                return;
+        }
 
         g_free(state->text);
         state->text = text;
