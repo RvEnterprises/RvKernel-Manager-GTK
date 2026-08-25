@@ -18,8 +18,6 @@ typedef struct {
         gsize           n_cores;
 
         GtkWidget      *uptime_row;
-        GtkWidget      *load_row;
-
         GtkProgressBar *overall_bar;
         GPtrArray      *core_bars;
 
@@ -65,7 +63,6 @@ refresh(GtkWidget *page)
                 rv_kv_set(GTK_WIDGET(ctx->uptime_row), "%s", uptime);
                 g_free(uptime);
         }
-        rv_kv_set(GTK_WIDGET(ctx->load_row), "%s", info->loadavg);
 
         if (info->swap_total_kb == 0)
                 gtk_widget_set_visible(GTK_WIDGET(ctx->swap_bar), FALSE);
@@ -156,10 +153,6 @@ build_system_card(DashCtx *ctx)
         row = rv_kv_row("Uptime");
         rv_card_add(card, row);
         ctx->uptime_row = row;
-
-        row = rv_kv_row("Load average");
-        rv_card_add(card, row);
-        ctx->load_row = row;
 
         rv_system_info_free(info);
         return card;
