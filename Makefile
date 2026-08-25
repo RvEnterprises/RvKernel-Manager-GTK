@@ -18,14 +18,23 @@ LDLIBS    := $(shell pkg-config --libs $(PKGS)) -lm
 SRCS      := $(shell find src -name '*.c' | sort)
 OBJS      := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 DEPS      := $(OBJS:.o=.d)
+ICONS     := $(shell find data/icons -name '*.svg')
+RES_XML   := data/icons/icons.gresource.xml
+RES_OBJ   := $(BUILD_DIR)/icons_resources.o
 
 .PHONY: all run clean install uninstall
 
 all: $(BIN_DIR)/$(APP_NAME)
 
-$(BIN_DIR)/$(APP_NAME): $(OBJS)
+$(BIN_DIR)/$(APP_NAME): $(OBJS) $(RES_OBJ)
 	@mkdir -p $(BIN_DIR)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+$(RES_OBJ): $(RES_XML) $(ICONS)
+	@mkdir -p $(dir $@)
+	glib-compile-resources --sourcedir=data/icons \
+		--target=$@.c --generate-source $(RES_XML)
+	$(CC) $(CFLAGS) -c $@.c -o $@
 
 $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)

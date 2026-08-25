@@ -10,6 +10,9 @@ find_window(GtkApplication *app)
         return windows != NULL ? GTK_WIDGET(windows->data) : NULL;
 }
 
+GResource *
+icons_get_resource(void);
+
 static void
 on_activate(GtkApplication *app, gpointer user_data)
 {
@@ -17,6 +20,10 @@ on_activate(GtkApplication *app, gpointer user_data)
 
         (void)user_data;
         rv_style_init();
+        g_resources_register(icons_get_resource());
+        gtk_icon_theme_add_resource_path(
+                gtk_icon_theme_get_for_display(gdk_display_get_default()),
+                "/com/rve/RvKernelManager/icons/hicolor");
 
         window = find_window(app);
         if (window == NULL)

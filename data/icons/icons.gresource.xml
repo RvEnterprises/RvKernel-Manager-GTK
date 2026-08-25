@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/com/rve/RvKernelManager/icons/hicolor">
+    <file alias="scalable/actions/dark-mode-symbolic.svg" compressed="true">hicolor/scalable/actions/dark-mode-symbolic.svg</file>
+  </gresource>
+</gresources>

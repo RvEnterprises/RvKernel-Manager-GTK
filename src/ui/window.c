@@ -109,7 +109,7 @@ build_headerbar(RvWindowCtx *ctx, GtkWidget *window)
         dark_btn = gtk_toggle_button_new();
         {
                 GtkWidget *icon = gtk_image_new_from_icon_name(
-                        "weather-clear-night-symbolic");
+                        "dark-mode-symbolic");
                 gtk_button_set_child(GTK_BUTTON(dark_btn), icon);
         }
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dark_btn), TRUE);
