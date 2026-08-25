@@ -85,7 +85,7 @@ gchar *
 rv_format_bytes(guint64 bytes)
 {
         gdouble value = (gdouble)bytes;
-        const gchar *units[] = { "B", "KiB", "MiB", "GiB", "TiB" };
+        const gchar *units[] = { "B", "KB", "MB", "GB", "TB" };
         gsize i = 0;
 
         while (value >= 1000.0 && i < G_N_ELEMENTS(units) - 1) {
