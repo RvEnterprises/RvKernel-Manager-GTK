@@ -9,8 +9,8 @@ clean interface to tweak and monitor a wide range of kernel parameters.
 
 ## Features
 
-- **Dashboard** — live CPU usage per core, memory/swap pressure, uptime,
-  load average, distro, kernel version and hardware summary.
+- **Dashboard** — live CPU usage per core, memory/ZRAM/swap pressure,
+  uptime, distro, kernel version and hardware summary.
 - **CPU** — per-cluster cpufreq control: governor selection, min/max
   frequency limits, energy performance preference (EPP), live frequencies.
 - **GPU** — DRM driver detection plus generic devfreq control
@@ -26,14 +26,16 @@ clean interface to tweak and monitor a wide range of kernel parameters.
 
 - Linux with GTK 4 (>= 4.10 recommended)
 - `gtk4-devel` / `libgtk-4-dev` build packages
-- Root privileges only needed to *apply* changes; everything is viewable as a
-  normal user. Launch with `sudo ./bin/rvkernel-manager` or use the desktop
-  file's "Launch as root" action (via pkexec).
+- Root privileges are required to launch: the app talks directly to
+  sysfs/procfs. Started as a regular user it re-execs itself through
+  polkit's `pkexec` (an authentication prompt appears) and exits with an
+  error if `pkexec` is not installed. Running it via `sudo` works too.
 
 ## Build & Run
 
 ```sh
 make            # builds bin/rvkernel-manager
+make run        # build (if needed) and launch
 ./bin/rvkernel-manager
 ```
 
@@ -47,24 +49,30 @@ sudo make install PREFIX=/usr/local
 
 ```
 src/
-├── main.c               entry point
+├── main.c               entry point, pkexec self-elevation
 ├── application.[ch]     GtkApplication bootstrap + actions
 ├── ui/                  presentation layer
-│   ├── window.[ch]      main window, navigation, toasts
-│   ├── style.[ch]       application CSS
-│   ├── widgets.[ch]     reusable card/row builders
-│   ├── page_dashboard.c dashboard page
-│   ├── page_cpu.c       cpufreq controls
-│   ├── page_gpu.c       DRM/devfreq controls
-│   ├── page_battery.c   battery monitoring + charge limit
-│   ├── page_memory.c    vm tunables / zram / tcp cc
-│   └── page_about.c     about page
+│   ├── window.[ch]      main window, header bar, toasts, refresh timer
+│   ├── sidebar.[ch]     navigation list bound to the page stack
+│   ├── theme/style.[ch] application CSS (light + dark palettes)
+│   ├── components/
+│   │   ├── widgets.[ch] reusable card/row/dropdown builders
+│   │   └── circular_progress_indicator.[ch]
+│   │                    animated usage rings on the dashboard
+│   └── pages/
+│       ├── pages.[ch]   page refresh plumbing
+│       ├── page_dashboard.c  dashboard page
+│       ├── page_cpu.c        cpufreq controls
+│       ├── page_gpu.c        DRM/devfreq controls
+│       ├── page_battery.c    battery monitoring + charge limit
+│       ├── page_memory.c     vm tunables / zram / tcp cc
+│       └── page_about.c      about page
 ├── core/                business logic (no UI types)
 │   ├── system_info.[ch] host/kernel/memory snapshots, cpu usage sampler
 │   ├── cpu.[ch]         cpufreq policy discovery + setters
 │   ├── gpu.[ch]         drm cards + devfreq devices
 │   ├── battery.[ch]     power_supply parsing + charge control
-│   ├── memory.[ch]      vm sysctls, zram, tcp congestion control
+│   └── memory.[ch]      vm sysctls, zram, tcp congestion control
 └── util/
     ├── sysfs.[ch]       sysfs/procfs read/write helpers
     └── format.[ch]      string tokenizing + human formatting
