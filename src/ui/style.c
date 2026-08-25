@@ -95,7 +95,7 @@ build_css(const RvMaterialPalette *p)
                 "}"
                 ".rv-battery-bar block.filled { background-color: %s; }"
                 ".rv-sidebar {"
-                "  background-color: transparent;"
+                "  background-color: %s;"
                 "  padding-top: 6px;"
                 "}"
                 ".rv-sidebar row { border-radius: 8px; }"
@@ -119,6 +119,7 @@ build_css(const RvMaterialPalette *p)
                 p->error,
                 p->on_surface,
                 p->primary,
+                p->surface_container,
                 p->on_surface,
                 p->secondary_container,
                 p->on_secondary_container);
