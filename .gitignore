@@ -18,6 +18,7 @@ build/
 
 # Tooling
 AGENTS.md
+.opencode/
 compile_commands.json
 .clangd/
 .cache/
