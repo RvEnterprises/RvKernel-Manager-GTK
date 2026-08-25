@@ -64,6 +64,72 @@ add_page(GtkStack *stack, GtkWidget *page, const gchar *name,
                      NULL);
 }
 
+static gboolean
+theme_name_is_dark(void)
+{
+        GtkSettings *settings = gtk_settings_get_default();
+        gchar *name = NULL;
+        gchar *lower;
+        gboolean dark;
+
+        g_object_get(settings, "gtk-theme-name", &name, NULL);
+        if (name == NULL)
+                return FALSE;
+
+        lower = g_ascii_strdown(name, -1);
+        dark = strstr(lower, "dark") != NULL;
+        g_free(lower);
+        g_free(name);
+
+        return dark;
+}
+
+static gboolean
+system_prefers_dark(void)
+{
+        GDBusConnection *bus;
+        GVariant *reply, *value;
+        GError *error = NULL;
+        guint32 scheme = 0;
+
+        if (g_getenv("DBUS_SESSION_BUS_ADDRESS") == NULL &&
+            g_getenv("XDG_RUNTIME_DIR") == NULL)
+                return theme_name_is_dark();
+
+        bus = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, NULL);
+        if (bus == NULL)
+                return theme_name_is_dark();
+
+        reply = g_dbus_connection_call_sync(
+                bus,
+                "org.freedesktop.portal.Desktop",
+                "/org/freedesktop/portal/desktop",
+                "org.freedesktop.portal.Settings",
+                "ReadOne",
+                g_variant_new("(ss)",
+                              "org.freedesktop.appearance",
+                              "color-scheme"),
+                G_VARIANT_TYPE("(v)"),
+                G_DBUS_CALL_FLAGS_NO_AUTO_START,
+                300,
+                NULL,
+                &error);
+        if (reply == NULL) {
+                g_error_free(error);
+                g_object_unref(bus);
+                return theme_name_is_dark();
+        }
+
+        g_variant_get(reply, "(v)", &value);
+        scheme = g_variant_get_uint32(value);
+        g_variant_unref(value);
+        g_variant_unref(reply);
+        g_object_unref(bus);
+
+        /* 1 = prefer dark; 0 = no preference and 2 = prefer light. */
+        return scheme == 1;
+}
+
 static void
 on_dark_toggled(GtkToggleButton *button, gpointer user_data)
 {
@@ -115,7 +181,8 @@ build_headerbar(RvWindowCtx *ctx, GtkWidget *window)
         gtk_widget_set_tooltip_text(dark_btn, "Toggle dark style");
         g_signal_connect(dark_btn, "toggled", G_CALLBACK(on_dark_toggled),
                          NULL);
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dark_btn), TRUE);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dark_btn),
+                                     system_prefers_dark());
         gtk_header_bar_pack_end(GTK_HEADER_BAR(header), dark_btn);
 
         return header;
