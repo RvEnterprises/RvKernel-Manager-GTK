@@ -65,42 +65,6 @@ add_page(GtkStack *stack, GtkWidget *page, const gchar *name,
 }
 
 static void
-show_about(GtkWidget *window)
-{
-        GtkAboutDialog *about;
-        const gchar *authors[] = { "Rve", NULL };
-
-        about = GTK_ABOUT_DIALOG(gtk_about_dialog_new());
-        gtk_about_dialog_set_program_name(about, RV_APP_NAME);
-        gtk_about_dialog_set_version(about, RV_VERSION);
-        gtk_about_dialog_set_comments(
-                about,
-                "Monitor and tune your Linux kernel: CPU governors and "
-                "frequencies, GPU devfreq devices, battery health and "
-                "charge limits, memory tunables and thermal zones.");
-        gtk_about_dialog_set_website(
-                about, "https://github.com/RvEnterprises/RvKernel-Manager-GTK");
-        gtk_about_dialog_set_website_label(
-                about, "github.com/RvEnterprises/RvKernel-Manager-GTK");
-        gtk_about_dialog_set_license_type(about, GTK_LICENSE_GPL_3_0);
-        gtk_about_dialog_set_copyright(about,
-                                       "Copyright (C) 2026 RvEnterprises");
-        gtk_about_dialog_set_authors(about, authors);
-        gtk_about_dialog_set_logo_icon_name(about, RV_APP_ID);
-
-        gtk_window_set_modal(GTK_WINDOW(about), TRUE);
-        gtk_window_set_transient_for(GTK_WINDOW(about), GTK_WINDOW(window));
-        gtk_window_present(GTK_WINDOW(about));
-}
-
-static void
-on_about_clicked(GtkButton *button, gpointer user_data)
-{
-        (void)button;
-        show_about(GTK_WIDGET(user_data));
-}
-
-static void
 on_dark_toggled(GtkToggleButton *button, gpointer user_data)
 {
         GtkSettings *settings = gtk_settings_get_default();
@@ -115,7 +79,7 @@ on_dark_toggled(GtkToggleButton *button, gpointer user_data)
 static GtkWidget *
 build_headerbar(RvWindowCtx *ctx, GtkWidget *window)
 {
-        GtkWidget *header, *refresh_btn, *dark_btn, *about_btn;
+        GtkWidget *header, *dark_btn;
         GtkWidget *name_label, *subtitle_label, *title_box;
         RvSystemInfo *info;
         gchar *subtitle;
@@ -142,12 +106,6 @@ build_headerbar(RvWindowCtx *ctx, GtkWidget *window)
 
         g_free(subtitle);
 
-        refresh_btn = gtk_button_new_from_icon_name("view-refresh-symbolic");
-        gtk_widget_set_tooltip_text(refresh_btn, "Refresh");
-        g_signal_connect_swapped(refresh_btn, "clicked",
-                                 G_CALLBACK(refresh_current), ctx);
-        gtk_header_bar_pack_start(GTK_HEADER_BAR(header), refresh_btn);
-
         dark_btn = gtk_toggle_button_new();
         {
                 GtkWidget *icon = gtk_image_new_from_icon_name(
@@ -159,12 +117,6 @@ build_headerbar(RvWindowCtx *ctx, GtkWidget *window)
         g_signal_connect(dark_btn, "toggled", G_CALLBACK(on_dark_toggled),
                          NULL);
         gtk_header_bar_pack_end(GTK_HEADER_BAR(header), dark_btn);
-
-        about_btn = gtk_button_new_from_icon_name("help-about-symbolic");
-        gtk_widget_set_tooltip_text(about_btn, "About");
-        g_signal_connect(about_btn, "clicked", G_CALLBACK(on_about_clicked),
-                         window);
-        gtk_header_bar_pack_end(GTK_HEADER_BAR(header), about_btn);
 
         return header;
 }
