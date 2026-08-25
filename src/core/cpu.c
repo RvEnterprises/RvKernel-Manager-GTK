@@ -27,12 +27,12 @@ realpath_dup(const gchar *path)
 }
 
 static gchar **
-read_token_list(const gchar *path)
+read_token_list(const gchar *dir, const gchar *name)
 {
         gchar *text;
         gchar **tokens;
 
-        text = read_trimmed(path);
+        text = read_trimmed_in(dir, name);
         tokens = text != NULL ? tokenize_ws(text) : g_new0(gchar *, 1);
         g_free(text);
         return tokens;
@@ -41,68 +41,43 @@ read_token_list(const gchar *path)
 static void
 policy_read_state(CpuPolicy *p)
 {
-        gchar *tmp;
-
         g_free(p->governor);
-        g_free(p->epp);
+        p->governor = read_first_line_in(p->path, "scaling_governor");
+
         g_free(p->cur_freq_khz);
+        p->cur_freq_khz = read_first_line_in(p->path, "scaling_cur_freq");
+
         g_free(p->min_freq_khz);
+        p->min_freq_khz = read_first_line_in(p->path, "scaling_min_freq");
+
         g_free(p->max_freq_khz);
+        p->max_freq_khz = read_first_line_in(p->path, "scaling_max_freq");
 
-        tmp = g_build_filename(p->path, "scaling_governor", NULL);
-        p->governor = read_first_line(tmp);
-        g_free(tmp);
-
-        tmp = g_build_filename(p->path, "scaling_cur_freq", NULL);
-        p->cur_freq_khz = read_first_line(tmp);
-        g_free(tmp);
-
-        tmp = g_build_filename(p->path, "scaling_min_freq", NULL);
-        p->min_freq_khz = read_first_line(tmp);
-        g_free(tmp);
-
-        tmp = g_build_filename(p->path, "scaling_max_freq", NULL);
-        p->max_freq_khz = read_first_line(tmp);
-        g_free(tmp);
-
-        if (p->has_epp) {
-                tmp = g_build_filename(p->path,
-                                       "energy_performance_preference", NULL);
-                p->epp = read_first_line(tmp);
-                g_free(tmp);
-        }
+        if (p->has_epp)
+                p->epp = read_first_line_in(p->path,
+                                            "energy_performance_preference");
 }
 
 static void
 policy_load_freqs(CpuPolicy *p)
 {
-        gchar *text;
-
         g_clear_pointer(&p->freqs_khz, free);
         p->n_freqs = 0;
 
-        text = g_build_filename(p->path, "scaling_available_frequencies",
-                                NULL);
         {
-                gchar *list = read_trimmed(text);
+                gchar *list = read_trimmed_in(p->path,
+                                              "scaling_available_frequencies");
                 if (list != NULL && list[0] != '\0')
                         p->freqs_khz = parse_int_list(list, &p->n_freqs);
                 g_free(list);
         }
-        g_free(text);
 
         if ((p->freqs_khz == NULL || p->n_freqs < 2)) {
                 gint64 min = 0, max = 0;
                 gboolean have_min, have_max;
-                gchar *tmp;
 
-                tmp = g_build_filename(p->path, "scaling_min_freq", NULL);
-                have_min = read_int64(tmp, &min);
-                g_free(tmp);
-
-                tmp = g_build_filename(p->path, "scaling_max_freq", NULL);
-                have_max = read_int64(tmp, &max);
-                g_free(tmp);
+                have_min = read_int64_in(p->path, "scaling_min_freq", &min);
+                have_max = read_int64_in(p->path, "scaling_max_freq", &max);
 
                 if (!have_min || !have_max || min == max) {
                         g_clear_pointer(&p->freqs_khz, free);
@@ -127,37 +102,24 @@ static CpuPolicy *
 load_policy(const gchar *dir_path)
 {
         CpuPolicy *p;
-        gchar *tmp;
 
         p = g_new0(CpuPolicy, 1);
         p->path = g_strdup(dir_path);
         p->cpus_desc = g_path_get_basename(dir_path);
 
-        tmp = g_build_filename(dir_path, "scaling_available_governors", NULL);
-        p->governors = read_token_list(tmp);
-        g_free(tmp);
+        p->governors = read_token_list(dir_path,
+                                       "scaling_available_governors");
 
         if (p->governors[0] == NULL) {
                 g_strfreev(p->governors);
                 p->governors = g_new0(gchar *, 2);
-                tmp = g_build_filename(dir_path, "scaling_governor", NULL);
-                p->governors[0] = read_first_line(tmp);
-                g_free(tmp);
+                p->governors[0] = read_first_line_in(dir_path,
+                                                     "scaling_governor");
         }
 
-        tmp = g_build_filename(dir_path,
-                               "energy_performance_available_preferences",
-                               NULL);
-        p->has_epp = path_exists(tmp);
-        g_free(tmp);
-
-        if (p->has_epp) {
-                tmp = g_build_filename(
-                        dir_path, "energy_performance_available_preferences",
-                        NULL);
-                p->epps = read_token_list(tmp);
-                g_free(tmp);
-        }
+        p->epps = read_token_list(dir_path,
+                                  "energy_performance_available_preferences");
+        p->has_epp = p->epps[0] != NULL;
 
         policy_load_freqs(p);
         policy_read_state(p);
