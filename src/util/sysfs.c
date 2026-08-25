@@ -167,7 +167,7 @@ rv_list_dir(const gchar *path, gsize *count)
         g_ptr_array_sort(names, cmp_names);
 
         if (count != NULL)
-                *count = names->len - 1;
+                *count = names->len;
 
         g_ptr_array_add(names, NULL);
         return (gchar **)g_ptr_array_free(names, FALSE);
