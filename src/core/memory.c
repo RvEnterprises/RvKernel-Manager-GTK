@@ -62,9 +62,10 @@ rv_zram_refresh(RvZram *z)
         tmp = g_build_filename(z->path, "disksize", NULL);
         g_free(z->disksize_str);
         if (rv_read_int64(tmp, &bytes) && bytes > 0) {
-                gchar *human = rv_format_bytes((guint64)bytes);
-                z->disksize_str = human;
+                z->disksize_bytes = (guint64)bytes;
+                z->disksize_str = rv_format_bytes((guint64)bytes);
         } else {
+                z->disksize_bytes = 0;
                 z->disksize_str = NULL;
         }
         g_free(tmp);

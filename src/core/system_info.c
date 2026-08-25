@@ -78,6 +78,45 @@ read_cpu_model(void)
         return result != NULL ? result : g_strdup("Unknown");
 }
 
+static void
+read_disk_swap(RvSystemInfo *info)
+{
+        gchar *content;
+        gchar **lines;
+
+        content = rv_read_trimmed("/proc/swaps");
+        if (content == NULL)
+                return;
+
+        lines = g_strsplit(content, "\n", -1);
+        for (gsize i = 1; lines[i] != NULL; i++) {
+                gchar *base;
+                gchar **fields;
+
+                if (lines[i][0] == '\0')
+                        continue;
+
+                base = g_path_get_basename(lines[i]);
+                if (g_str_has_prefix(base, "zram")) {
+                        g_free(base);
+                        continue;
+                }
+                g_free(base);
+
+                fields = rv_tokenize_ws(lines[i]);
+                if (fields[0] != NULL && fields[1] != NULL &&
+                    fields[2] != NULL && fields[3] != NULL) {
+                        info->disk_swap_total_kb +=
+                                g_ascii_strtoull(fields[2], NULL, 10);
+                        info->disk_swap_used_kb +=
+                                g_ascii_strtoull(fields[3], NULL, 10);
+                }
+                g_strfreev(fields);
+        }
+        g_strfreev(lines);
+        g_free(content);
+}
+
 RvSystemInfo *
 rv_system_info_get(void)
 {
@@ -155,6 +194,8 @@ rv_system_info_get(void)
                 g_strfreev(lines);
                 g_free(meminfo);
         }
+
+        read_disk_swap(info);
 
         return info;
 }

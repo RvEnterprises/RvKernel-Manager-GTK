@@ -88,7 +88,7 @@ rv_format_bytes(guint64 bytes)
         const gchar *units[] = { "B", "KiB", "MiB", "GiB", "TiB" };
         gsize i = 0;
 
-        while (value >= 1024.0 && i < G_N_ELEMENTS(units) - 1) {
+        while (value >= 1000.0 && i < G_N_ELEMENTS(units) - 1) {
                 value /= 1024.0;
                 i++;
         }
@@ -96,8 +96,11 @@ rv_format_bytes(guint64 bytes)
         if (i == 0)
                 return g_strdup_printf("%.0f %s", value, units[i]);
 
-        return g_strdup_printf(value >= 10.0 ? "%.1f %s" : "%.2f %s",
-                               value, units[i]);
+        if (value >= 100.0)
+                return g_strdup_printf("%.0f %s", value, units[i]);
+        if (value >= 10.0)
+                return g_strdup_printf("%.1f %s", value, units[i]);
+        return g_strdup_printf("%.2f %s", value, units[i]);
 }
 
 gchar *

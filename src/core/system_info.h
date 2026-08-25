@@ -23,6 +23,8 @@ typedef struct {
         guint64  mem_available_kb;
         guint64  swap_total_kb;
         guint64  swap_free_kb;
+        guint64  disk_swap_total_kb;
+        guint64  disk_swap_used_kb;
 } RvSystemInfo;
 
 RvSystemInfo *rv_system_info_get     (void);

@@ -11,6 +11,7 @@ typedef struct {
         gchar    *disksize_str;
         gchar    *algo;
         gchar   **algos;
+        guint64   disksize_bytes;
         guint64   orig_bytes;
         guint64   compr_bytes;
         guint64   used_bytes;

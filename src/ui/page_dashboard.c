@@ -1,8 +1,10 @@
 #include "pages.h"
 #include "widgets.h"
+#include "gauge.h"
 
 #include "../core/system_info.h"
 #include "../core/battery.h"
+#include "../core/memory.h"
 #include "../util/format.h"
 #include "../util/sysfs.h"
 
@@ -18,11 +20,19 @@ typedef struct {
         gsize           n_cores;
 
         GtkWidget      *uptime_row;
-        GtkProgressBar *overall_bar;
-        GPtrArray      *core_bars;
 
-        GtkProgressBar *mem_bar;
-        GtkProgressBar *swap_bar;
+        GtkWidget      *cpu_gauge;
+        GtkWidget      *ram_gauge;
+        GtkWidget      *ram_detail;
+        GtkWidget      *zram_gauge;
+        GtkWidget      *zram_detail;
+        GtkWidget      *zram_section;
+        GtkWidget      *swap_gauge;
+        GtkWidget      *swap_detail;
+        GtkWidget      *swap_section;
+
+        RvZram        **zrams;
+        gsize           n_zrams;
 
         GPtrArray      *battery_rows;
         RvPowerSupply **supplies;
@@ -42,6 +52,45 @@ mem_line(guint64 total_kb, guint64 avail_kb)
         g_free(used_s);
         g_free(total_s);
         return out;
+}
+
+static gchar *
+usage_line(guint64 used_bytes, guint64 total_bytes)
+{
+        gchar *used_s = rv_format_bytes(used_bytes);
+        gchar *total_s = rv_format_bytes(total_bytes);
+        gchar *out = g_strdup_printf("%s / %s", used_s, total_s);
+
+        g_free(used_s);
+        g_free(total_s);
+        return out;
+}
+
+static void
+set_severity(GtkWidget *widget, gdouble value)
+{
+        gtk_widget_remove_css_class(widget, "rv-sev-warn");
+        gtk_widget_remove_css_class(widget, "rv-sev-crit");
+
+        if (value >= 0.85)
+                gtk_widget_add_css_class(widget, "rv-sev-crit");
+        else if (value >= 0.60)
+                gtk_widget_add_css_class(widget, "rv-sev-warn");
+}
+
+static void
+update_ring(GtkWidget *gauge, GtkWidget *detail, gdouble frac,
+            guint64 used_bytes, guint64 total_bytes)
+{
+        gchar *text;
+
+        rv_gauge_set_fraction(gauge, frac);
+        rv_gauge_set_text(gauge, "%d%%", (gint)(frac * 100));
+        set_severity(gauge, frac);
+
+        text = usage_line(used_bytes, total_bytes);
+        gtk_label_set_text(GTK_LABEL(detail), text);
+        g_free(text);
 }
 
 static void
@@ -64,48 +113,68 @@ refresh(GtkWidget *page)
                 g_free(uptime);
         }
 
-        if (info->swap_total_kb == 0)
-                gtk_widget_set_visible(GTK_WIDGET(ctx->swap_bar), FALSE);
-
         per_core = g_new0(gdouble, ctx->n_cores + 1);
         rv_cpu_usage_sample(ctx->samples, per_core, ctx->n_cores, &overall);
-
-        for (gsize i = 0; i < ctx->core_bars->len; i++) {
-                GtkProgressBar *bar = g_ptr_array_index(ctx->core_bars, i);
-                gdouble v = per_core[i];
-                gtk_progress_bar_set_fraction(bar, CLAMP(v < 0 ? 0 : v,
-                                                         0.0, 1.0));
-        }
         g_free(per_core);
 
         overall = CLAMP(overall < 0 ? 0 : overall, 0.0, 1.0);
-        gtk_progress_bar_set_fraction(ctx->overall_bar, overall);
-        text = g_strdup_printf("CPU %d%%", (gint)(overall * 100));
-        gtk_progress_bar_set_text(ctx->overall_bar, text);
-        g_free(text);
+        rv_gauge_set_fraction(ctx->cpu_gauge, overall);
+        rv_gauge_set_text(ctx->cpu_gauge, "%d%%", (gint)(overall * 100));
+        set_severity(ctx->cpu_gauge, overall);
 
         if (info->mem_total_kb > 0) {
-                gtk_progress_bar_set_fraction(
-                        ctx->mem_bar,
+                gdouble frac =
                         CLAMP((gdouble)(info->mem_total_kb -
                                         info->mem_available_kb) /
                                       (gdouble)info->mem_total_kb,
-                              0, 1));
-                text = mem_line(info->mem_total_kb, info->mem_available_kb);
-                gtk_progress_bar_set_text(ctx->mem_bar, text);
+                              0.0, 1.0);
+
+                rv_gauge_set_fraction(ctx->ram_gauge, frac);
+                rv_gauge_set_text(ctx->ram_gauge, "%d%%",
+                                  (gint)(frac * 100));
+                set_severity(ctx->ram_gauge, frac);
+                text = mem_line(info->mem_total_kb,
+                                info->mem_available_kb);
+                gtk_label_set_text(GTK_LABEL(ctx->ram_detail), text);
                 g_free(text);
         }
 
-        if (info->swap_total_kb > 0) {
-                gtk_progress_bar_set_fraction(
-                        ctx->swap_bar,
-                        CLAMP((gdouble)(info->swap_total_kb -
-                                        info->swap_free_kb) /
-                                      (gdouble)info->swap_total_kb,
-                              0, 1));
-                text = mem_line(info->swap_total_kb, info->swap_free_kb);
-                gtk_progress_bar_set_text(ctx->swap_bar, text);
-                g_free(text);
+        {
+                guint64 used = 0, size = 0;
+                gboolean have = FALSE;
+
+                for (gsize i = 0; i < ctx->n_zrams; i++) {
+                        RvZram *z = ctx->zrams[i];
+
+                        rv_zram_refresh(z);
+                        if (z->has_stats && z->disksize_bytes > 0) {
+                                have = TRUE;
+                                used += z->used_bytes;
+                                size += z->disksize_bytes;
+                        }
+                }
+
+                gtk_widget_set_visible(GTK_WIDGET(ctx->zram_section),
+                                       have);
+                if (have) {
+                        update_ring(ctx->zram_gauge, ctx->zram_detail,
+                                    CLAMP((gdouble)used / (gdouble)size,
+                                          0.0, 1.0),
+                                    used, size);
+                }
+        }
+
+        if (info->disk_swap_total_kb > 0) {
+                update_ring(ctx->swap_gauge, ctx->swap_detail,
+                            CLAMP((gdouble)info->disk_swap_used_kb /
+                                          (gdouble)info->
+                                                  disk_swap_total_kb,
+                                  0.0, 1.0),
+                            info->disk_swap_used_kb * 1024ULL,
+                            info->disk_swap_total_kb * 1024ULL);
+        } else {
+                gtk_widget_set_visible(GTK_WIDGET(ctx->swap_section),
+                                       FALSE);
         }
 
         for (gsize i = 0; i < ctx->battery_rows->len; i++) {
@@ -159,78 +228,66 @@ build_system_card(DashCtx *ctx)
 }
 
 static GtkWidget *
-build_monitor_card(DashCtx *ctx, gsize n_cores)
+gauge_column(GtkWidget *gauge, GtkWidget *detail)
 {
-        GtkWidget *card, *row;
+        GtkWidget *column = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+
+        gtk_widget_set_halign(column, GTK_ALIGN_CENTER);
+        gtk_widget_set_valign(gauge, GTK_ALIGN_START);
+        gtk_box_append(GTK_BOX(column), gauge);
+
+        if (detail != NULL) {
+                gtk_label_set_ellipsize(GTK_LABEL(detail),
+                                        PANGO_ELLIPSIZE_END);
+                gtk_label_set_xalign(GTK_LABEL(detail), 0.5f);
+                gtk_widget_add_css_class(detail, "dim-label");
+                gtk_box_append(GTK_BOX(column), detail);
+        }
+
+        return column;
+}
+
+static GtkWidget *
+build_monitor_card(DashCtx *ctx)
+{
+        GtkWidget *card, *grid;
 
         card = rv_card_new("Live monitor");
 
-        ctx->overall_bar = GTK_PROGRESS_BAR(gtk_progress_bar_new());
-        gtk_progress_bar_set_show_text(ctx->overall_bar, TRUE);
-        gtk_progress_bar_set_text(ctx->overall_bar, "CPU");
+        grid = gtk_flow_box_new();
+        gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(grid),
+                                        GTK_SELECTION_NONE);
+        gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(grid), 4);
+        gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(grid), 2);
+        gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(grid), 16);
+        gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(grid), 12);
+        gtk_widget_add_css_class(grid, "rv-section");
+        gtk_widget_set_hexpand(grid, TRUE);
+        gtk_widget_set_valign(grid, GTK_ALIGN_START);
 
-        row = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
-        gtk_widget_add_css_class(GTK_WIDGET(row), "rv-row");
-        gtk_box_append(GTK_BOX(row), GTK_WIDGET(ctx->overall_bar));
-        rv_card_add(card, GTK_WIDGET(row));
+        ctx->cpu_gauge = rv_gauge_new("CPU");
+        gtk_flow_box_append(GTK_FLOW_BOX(grid),
+                            gauge_column(ctx->cpu_gauge, NULL));
 
-        {
-                GtkWidget *grid = gtk_flow_box_new();
-                guint per_line =
-                        (guint)CLAMP((gint)n_cores, 2, 8);
+        ctx->ram_detail = gtk_label_new("-");
+        ctx->ram_gauge = rv_gauge_new("RAM");
+        gtk_flow_box_append(GTK_FLOW_BOX(grid),
+                            gauge_column(ctx->ram_gauge,
+                                         ctx->ram_detail));
 
-                gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(grid),
-                                                GTK_SELECTION_NONE);
-                gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(grid),
-                                                       per_line);
-                gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(grid),
-                                                       per_line < 4 ? per_line
-                                                                    : 4);
-                gtk_widget_add_css_class(grid, "rv-row");
+        ctx->zram_detail = gtk_label_new("-");
+        ctx->zram_gauge = rv_gauge_new("ZRAM");
+        ctx->zram_section = gauge_column(ctx->zram_gauge,
+                                         ctx->zram_detail);
+        gtk_flow_box_append(GTK_FLOW_BOX(grid), ctx->zram_section);
 
-                ctx->core_bars =
-                        g_ptr_array_sized_new(n_cores);
-                for (gsize i = 0; i < n_cores; i++) {
-                        GtkWidget *cell = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-                        GtkWidget *label;
-                        GtkWidget *bar;
-                        gchar *text = g_strdup_printf("%zu", i);
+        ctx->swap_detail = gtk_label_new("-");
+        ctx->swap_gauge = rv_gauge_new("Swap");
+        ctx->swap_section = gauge_column(ctx->swap_gauge,
+                                         ctx->swap_detail);
+        gtk_flow_box_append(GTK_FLOW_BOX(grid), ctx->swap_section);
 
-                        label = gtk_label_new(text);
-                        g_free(text);
-                        gtk_widget_add_css_class(label, "dim-label");
-
-                        bar = gtk_progress_bar_new();
-                        gtk_widget_add_css_class(bar, "rv-core-bar");
-                        gtk_widget_set_hexpand(bar, TRUE);
-
-                        gtk_box_append(GTK_BOX(cell), label);
-                        gtk_box_append(GTK_BOX(cell), bar);
-                        gtk_flow_box_append(GTK_FLOW_BOX(grid), cell);
-
-                        g_ptr_array_add(ctx->core_bars, bar);
-                }
-
-                rv_card_add(card, grid);
-        }
-
-        ctx->mem_bar = GTK_PROGRESS_BAR(gtk_progress_bar_new());
-        gtk_progress_bar_set_show_text(ctx->mem_bar, TRUE);
-        gtk_progress_bar_set_text(ctx->mem_bar, "RAM");
-
-        row = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
-        gtk_widget_add_css_class(GTK_WIDGET(row), "rv-row");
-        gtk_box_append(GTK_BOX(row), GTK_WIDGET(ctx->mem_bar));
-        rv_card_add(card, GTK_WIDGET(row));
-
-        ctx->swap_bar = GTK_PROGRESS_BAR(gtk_progress_bar_new());
-        gtk_progress_bar_set_show_text(ctx->swap_bar, TRUE);
-        gtk_progress_bar_set_text(ctx->swap_bar, "Swap");
-
-        row = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
-        gtk_widget_add_css_class(GTK_WIDGET(row), "rv-row");
-        gtk_box_append(GTK_BOX(row), GTK_WIDGET(ctx->swap_bar));
-        rv_card_add(card, GTK_WIDGET(row));
+        gtk_box_append(GTK_BOX(card), grid);
 
         return card;
 }
@@ -294,6 +351,7 @@ rv_page_dashboard_new(GtkWidget *window)
         ctx->window = window;
         ctx->n_cores = rv_cpu_sample_count();
         ctx->samples = g_new0(RvCpuSample, ctx->n_cores + 1);
+        ctx->zrams = rv_zram_list(&ctx->n_zrams);
 
         title = gtk_label_new("Dashboard");
         gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
@@ -302,7 +360,7 @@ rv_page_dashboard_new(GtkWidget *window)
 
         gtk_box_append(GTK_BOX(content), build_system_card(ctx));
         gtk_box_append(GTK_BOX(content),
-                       build_monitor_card(ctx, ctx->n_cores));
+                       build_monitor_card(ctx));
 
         card = build_battery_card(ctx);
         if (card != NULL)
@@ -320,7 +378,8 @@ static void
 dash_ctx_free(DashCtx *ctx)
 {
         g_free(ctx->samples);
-        g_clear_pointer(&ctx->core_bars, g_ptr_array_unref);
+        if (ctx->zrams != NULL)
+                rv_zram_list_free(ctx->zrams, ctx->n_zrams);
         g_clear_pointer(&ctx->battery_rows, g_ptr_array_unref);
         if (ctx->supplies != NULL)
                 rv_power_supply_list_free(ctx->supplies, ctx->n_supplies);
