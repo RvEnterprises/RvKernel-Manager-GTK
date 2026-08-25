@@ -169,7 +169,9 @@ CpuPolicy **
 cpu_policies(gsize *count)
 {
         GPtrArray *result = g_ptr_array_new();
-        GPtrArray *seen_paths = g_ptr_array_new_with_free_func(g_free);
+        GHashTable *seen_paths = g_hash_table_new_full(g_str_hash,
+                                                       g_str_equal,
+                                                       g_free, NULL);
         gchar *cpufreq_dir = g_build_filename(CPU_BASE, "cpufreq", NULL);
         gsize n_entries = 0;
         gchar **entries;
@@ -178,7 +180,6 @@ cpu_policies(gsize *count)
         for (gsize i = 0; i < n_entries; i++) {
                 gchar *path;
                 gchar *rp;
-                gboolean dup = FALSE;
 
                 if (!g_str_has_prefix(entries[i], "policy"))
                         continue;
@@ -186,22 +187,12 @@ cpu_policies(gsize *count)
                 path = g_build_filename(cpufreq_dir, entries[i], NULL);
                 rp = realpath_dup(path);
 
-                for (gsize k = 0; k < seen_paths->len; k++) {
-                        if (g_strcmp0(g_ptr_array_index(seen_paths, k),
-                                      rp) == 0) {
-                                dup = TRUE;
-                                break;
-                        }
-                }
-
-                if (dup) {
+                if (!g_hash_table_contains(seen_paths, rp)) {
+                        g_hash_table_add(seen_paths, rp);
+                        g_ptr_array_add(result, load_policy(path));
+                } else {
                         g_free(rp);
-                        g_free(path);
-                        continue;
                 }
-                g_ptr_array_add(seen_paths, rp);
-
-                g_ptr_array_add(result, load_policy(path));
                 g_free(path);
         }
         g_strfreev(entries);
@@ -232,7 +223,7 @@ cpu_policies(gsize *count)
 
         g_ptr_array_sort(result, cmp_policy_cpus_desc);
         g_free(cpufreq_dir);
-        g_ptr_array_unref(seen_paths);
+        g_hash_table_unref(seen_paths);
 
         if (count != NULL)
                 *count = result->len;

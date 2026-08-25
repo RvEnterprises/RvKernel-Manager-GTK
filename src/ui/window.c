@@ -38,11 +38,31 @@ refresh_current(WindowCtx *ctx)
 }
 
 static gboolean
+on_screen(WindowCtx *ctx)
+{
+        GdkSurface *surface;
+        GdkToplevelState state;
+
+        if (!gtk_widget_get_mapped(GTK_WIDGET(ctx->stack)))
+                return FALSE;
+
+        surface = gtk_native_get_surface(
+                GTK_NATIVE(gtk_widget_get_root(GTK_WIDGET(ctx->stack))));
+        if (surface == NULL || !GDK_IS_TOPLEVEL(surface))
+                return TRUE;
+
+        state = gdk_toplevel_get_state(GDK_TOPLEVEL(surface));
+        return !(state & (GDK_TOPLEVEL_STATE_MINIMIZED |
+                          GDK_TOPLEVEL_STATE_SUSPENDED));
+}
+
+static gboolean
 on_timer(gpointer user_data)
 {
         WindowCtx *ctx = user_data;
 
-        refresh_current(ctx);
+        if (on_screen(ctx))
+                refresh_current(ctx);
         return G_SOURCE_CONTINUE;
 }
 
