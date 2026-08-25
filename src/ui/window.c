@@ -112,10 +112,10 @@ build_headerbar(RvWindowCtx *ctx, GtkWidget *window)
                         "dark-mode-symbolic");
                 gtk_button_set_child(GTK_BUTTON(dark_btn), icon);
         }
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dark_btn), TRUE);
         gtk_widget_set_tooltip_text(dark_btn, "Toggle dark style");
         g_signal_connect(dark_btn, "toggled", G_CALLBACK(on_dark_toggled),
                          NULL);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dark_btn), TRUE);
         gtk_header_bar_pack_end(GTK_HEADER_BAR(header), dark_btn);
 
         return header;
