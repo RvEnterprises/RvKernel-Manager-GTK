@@ -2,5 +2,11 @@
 <gresources>
   <gresource prefix="/com/rve/RvKernelManager/icons/hicolor">
     <file alias="scalable/actions/dark-mode-symbolic.svg" compressed="true">hicolor/scalable/actions/dark-mode-symbolic.svg</file>
+    <file alias="scalable/actions/dashboard-symbolic.svg" compressed="true">hicolor/scalable/actions/dashboard-symbolic.svg</file>
+    <file alias="scalable/actions/cpu-symbolic.svg" compressed="true">hicolor/scalable/actions/cpu-symbolic.svg</file>
+    <file alias="scalable/actions/gpu-symbolic.svg" compressed="true">hicolor/scalable/actions/gpu-symbolic.svg</file>
+    <file alias="scalable/actions/battery-symbolic.svg" compressed="true">hicolor/scalable/actions/battery-symbolic.svg</file>
+    <file alias="scalable/actions/memory-symbolic.svg" compressed="true">hicolor/scalable/actions/memory-symbolic.svg</file>
+    <file alias="scalable/actions/info-symbolic.svg" compressed="true">hicolor/scalable/actions/info-symbolic.svg</file>
   </gresource>
 </gresources>

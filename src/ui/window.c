@@ -1,5 +1,6 @@
 #include "window.h"
 #include "pages.h"
+#include "sidebar.h"
 #include "style.h"
 
 #include "../core/system_info.h"
@@ -351,7 +352,7 @@ rv_window_new(GtkApplication *app)
         gtk_widget_set_vexpand(split, TRUE);
         gtk_box_append(GTK_BOX(root_box), split);
 
-        sidebar = gtk_stack_sidebar_new();
+        sidebar = rv_sidebar_new();
         gtk_widget_add_css_class(sidebar, "rv-sidebar");
         sidebar_scroll = gtk_scrolled_window_new();
         gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(sidebar_scroll),
@@ -370,8 +371,7 @@ rv_window_new(GtkApplication *app)
         stack = gtk_stack_new();
         gtk_stack_set_transition_type(
                 GTK_STACK(stack), GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT);
-        gtk_stack_sidebar_set_stack(GTK_STACK_SIDEBAR(sidebar),
-                                    GTK_STACK(stack));
+        rv_sidebar_set_stack(sidebar, GTK_STACK(stack));
         ctx->stack = GTK_STACK(stack);
 
         gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(main_area), stack);
@@ -379,17 +379,17 @@ rv_window_new(GtkApplication *app)
         gtk_box_append(GTK_BOX(split), main_area);
 
         add_page(GTK_STACK(stack), rv_page_dashboard_new(window),
-                 "dashboard", "Dashboard", "computer-symbolic");
+                 "dashboard", "Dashboard", "dashboard-symbolic");
         add_page(GTK_STACK(stack), rv_page_cpu_new(window),
-                 "cpu", "CPU", "applications-engineering-symbolic");
+                 "cpu", "CPU", "cpu-symbolic");
         add_page(GTK_STACK(stack), rv_page_gpu_new(window),
-                 "gpu", "GPU", "video-display-symbolic");
+                 "gpu", "GPU", "gpu-symbolic");
         add_page(GTK_STACK(stack), rv_page_battery_new(window),
                  "battery", "Battery", "battery-symbolic");
         add_page(GTK_STACK(stack), rv_page_memory_new(window),
-                 "memory", "Memory", "drive-multidisk-symbolic");
+                 "memory", "Memory", "memory-symbolic");
         add_page(GTK_STACK(stack), rv_page_about_new(window),
-                 "about", "About", "help-about-symbolic");
+                 "about", "About", "info-symbolic");
 
         g_signal_connect(stack, "notify::visible-child",
                          G_CALLBACK(on_visible_child_changed), ctx);
