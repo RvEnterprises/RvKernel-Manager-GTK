@@ -117,28 +117,56 @@ read_disk_swap(SystemInfo *info)
         g_free(content);
 }
 
+static struct {
+        gchar *hostname;
+        gchar *distro;
+        gchar *kernel;
+        gchar *arch;
+        gchar *cpu_model;
+        gsize n_cores;
+} info_cache;
+
+static void
+info_cache_init(void)
+{
+        struct utsname uts;
+        glong cores;
+
+        if (uname(&uts) == 0) {
+                info_cache.hostname = g_strdup(uts.nodename);
+                info_cache.kernel = g_strdup_printf("%s %s", uts.sysname,
+                                                    uts.release);
+                info_cache.arch = g_strdup(uts.machine);
+        } else {
+                info_cache.hostname = g_strdup("localhost");
+                info_cache.kernel = g_strdup("unknown");
+                info_cache.arch = g_strdup("unknown");
+        }
+
+        info_cache.distro = read_os_pretty_name();
+        info_cache.cpu_model = read_cpu_model();
+
+        cores = sysconf(_SC_NPROCESSORS_ONLN);
+        info_cache.n_cores = cores > 0 ? (gsize)cores : 1;
+}
+
 SystemInfo *
 system_info_get(void)
 {
         SystemInfo *info = g_new0(SystemInfo, 1);
-        struct utsname uts;
         struct sysinfo si;
         gchar *meminfo;
         gchar **lines;
 
-        if (uname(&uts) == 0) {
-                info->hostname = g_strdup(uts.nodename);
-                info->kernel = g_strdup_printf("%s %s", uts.sysname,
-                                               uts.release);
-                info->arch = g_strdup(uts.machine);
-        } else {
-                info->hostname = g_strdup("localhost");
-                info->kernel = g_strdup("unknown");
-                info->arch = g_strdup("unknown");
-        }
+        if (G_UNLIKELY(info_cache.hostname == NULL))
+                info_cache_init();
 
-        info->distro = read_os_pretty_name();
-        info->cpu_model = read_cpu_model();
+        info->hostname = g_strdup(info_cache.hostname);
+        info->distro = g_strdup(info_cache.distro);
+        info->kernel = g_strdup(info_cache.kernel);
+        info->arch = g_strdup(info_cache.arch);
+        info->cpu_model = g_strdup(info_cache.cpu_model);
+        info->n_cores = info_cache.n_cores;
 
         info->loadavg = read_first_line("/proc/loadavg");
         if (info->loadavg != NULL) {

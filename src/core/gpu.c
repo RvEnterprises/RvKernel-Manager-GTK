@@ -33,6 +33,25 @@ read_tokens_from_file(const gchar *path)
         return tokens;
 }
 
+static void
+devfreq_read_governors(Devfreq *d)
+{
+        gchar *tmp;
+        gchar **tokens;
+
+        tmp = g_build_filename(d->devfreq_path, "available_governors", NULL);
+        tokens = read_tokens_from_file(tmp);
+        g_free(tmp);
+
+        if (tokens[0] == NULL) {
+                g_strfreev(tokens);
+                tokens = g_new0(gchar *, 2);
+                tokens[0] = g_strdup(d->governor != NULL ?
+                                     d->governor : "");
+        }
+        d->governors = tokens;
+}
+
 Devfreq *
 devfreq_new(const gchar *path, const gchar *name)
 {
@@ -41,13 +60,13 @@ devfreq_new(const gchar *path, const gchar *name)
         d->devfreq_path = g_strdup(path);
         d->name = g_strdup(name);
         devfreq_refresh(d);
+        devfreq_read_governors(d);
         return d;
 }
 
 void
 devfreq_refresh(Devfreq *d)
 {
-        gchar **tokens;
         gchar *tmp;
 
         if (d == NULL)
@@ -57,8 +76,6 @@ devfreq_refresh(Devfreq *d)
         g_free(d->cur_freq_hz);
         g_free(d->min_freq_hz);
         g_free(d->max_freq_hz);
-        g_strfreev(d->governors);
-        d->governors = NULL;
 
         tmp = g_build_filename(d->devfreq_path, "governor", NULL);
         d->governor = read_first_line(tmp);
@@ -75,18 +92,6 @@ devfreq_refresh(Devfreq *d)
         tmp = g_build_filename(d->devfreq_path, "max_freq", NULL);
         d->max_freq_hz = read_first_line(tmp);
         g_free(tmp);
-
-        tmp = g_build_filename(d->devfreq_path, "available_governors", NULL);
-        tokens = read_tokens_from_file(tmp);
-        g_free(tmp);
-
-        if (tokens[0] == NULL) {
-                g_strfreev(tokens);
-                tokens = g_new0(gchar *, 2);
-                tokens[0] = g_strdup(d->governor != NULL ?
-                                     d->governor : "");
-        }
-        d->governors = tokens;
 }
 
 Devfreq **

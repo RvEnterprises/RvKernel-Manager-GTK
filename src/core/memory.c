@@ -38,41 +38,24 @@ zram_parse_active_algo(const gchar *text)
         return g_strndup(start + 1, (gsize)(end - start - 1));
 }
 
-Zram *
-zram_new(const gchar *path, const gchar *name)
-{
-        Zram *z = g_new0(Zram, 1);
-
-        z->path = g_strdup(path);
-        z->name = g_strdup(name);
-        zram_refresh(z);
-        return z;
-}
-
-void
-zram_refresh(Zram *z)
+static void
+zram_read_static(Zram *z)
 {
         gchar *tmp;
         gchar *text;
         gint64 bytes;
 
-        if (z == NULL)
-                return;
-
         tmp = g_build_filename(z->path, "disksize", NULL);
-        g_free(z->disksize_str);
         if (read_int64(tmp, &bytes) && bytes > 0) {
                 z->disksize_bytes = (guint64)bytes;
                 z->disksize_str = format_bytes((guint64)bytes);
-        } else {
-                z->disksize_bytes = 0;
-                z->disksize_str = NULL;
         }
         g_free(tmp);
 
         tmp = g_build_filename(z->path, "comp_algorithm", NULL);
         text = read_trimmed(tmp);
-        g_free(z->algo);
+        g_free(tmp);
+
         z->algo = text != NULL ? zram_parse_active_algo(text) : NULL;
         if (z->algo == NULL && text != NULL && text[0] != '\0') {
                 gchar **tokens = tokenize_ws(text);
@@ -81,8 +64,6 @@ zram_refresh(Zram *z)
                 g_strfreev(tokens);
         }
 
-        g_strfreev(z->algos);
-        z->algos = NULL;
         if (text != NULL) {
                 GPtrArray *arr = g_ptr_array_new_with_free_func(g_free);
                 gchar **tokens = tokenize_ws(text);
@@ -102,10 +83,32 @@ zram_refresh(Zram *z)
                 z->algos = g_new0(gchar *, 1);
         }
         g_free(text);
-        g_free(tmp);
+}
+
+Zram *
+zram_new(const gchar *path, const gchar *name)
+{
+        Zram *z = g_new0(Zram, 1);
+
+        z->path = g_strdup(path);
+        z->name = g_strdup(name);
+        zram_read_static(z);
+        zram_refresh(z);
+        return z;
+}
+
+void
+zram_refresh(Zram *z)
+{
+        gchar *tmp;
+        gchar *text;
+
+        if (z == NULL)
+                return;
 
         tmp = g_build_filename(z->path, "mm_stat", NULL);
         text = read_trimmed(tmp);
+        g_free(tmp);
         z->has_stats = FALSE;
         if (text != NULL) {
                 gint64 *values = NULL;
@@ -120,7 +123,6 @@ zram_refresh(Zram *z)
                 free(values);
         }
         g_free(text);
-        g_free(tmp);
 }
 
 Zram **

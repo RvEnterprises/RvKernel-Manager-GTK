@@ -27,6 +27,8 @@ kind_from_type(const gchar *type)
         return PS_OTHER;
 }
 
+static void power_supply_read_static(PowerSupply *ps);
+
 static PowerSupply *
 power_supply_new(const gchar *path, const gchar *name)
 {
@@ -44,9 +46,72 @@ power_supply_new(const gchar *path, const gchar *name)
         ps->kind = kind_from_type(read_first_line(tmp));
         g_free(tmp);
 
+        power_supply_read_static(ps);
         power_supply_refresh(ps);
 
         return ps;
+}
+
+static void
+power_supply_read_static(PowerSupply *ps)
+{
+        gchar *tmp;
+        gint64 value;
+
+        tmp = g_build_filename(ps->path, "cycle_count", NULL);
+        if (read_int64(tmp, &value) && value > 0) {
+                ps->has_cycle_count = TRUE;
+                ps->cycle_count = (gint)value;
+        }
+        g_free(tmp);
+
+        tmp = g_build_filename(ps->path, "charge_full", NULL);
+        ps->has_charge_full = read_double(tmp, &ps->charge_full_wh);
+        if (ps->has_charge_full)
+                ps->charge_full_wh /= 1000000.0;
+        g_free(tmp);
+
+        tmp = g_build_filename(ps->path, "energy_full", NULL);
+        if (!ps->has_charge_full &&
+            read_double(tmp, &ps->charge_full_wh)) {
+                ps->has_charge_full = TRUE;
+                ps->charge_full_wh /= 1000000.0;
+        }
+        g_free(tmp);
+
+        tmp = g_build_filename(ps->path, "charge_full_design", NULL);
+        ps->has_charge_design = read_double(tmp, &ps->charge_design_wh);
+        if (ps->has_charge_design)
+                ps->charge_design_wh /= 1000000.0;
+        g_free(tmp);
+
+        tmp = g_build_filename(ps->path, "energy_full_design", NULL);
+        if (!ps->has_charge_design &&
+            read_double(tmp, &ps->charge_design_wh)) {
+                ps->has_charge_design = TRUE;
+                ps->charge_design_wh /= 1000000.0;
+        }
+        g_free(tmp);
+
+        if (ps->has_charge_full && ps->has_charge_design &&
+            ps->charge_design_wh > 0) {
+                ps->health = (gint)((ps->charge_full_wh /
+                                     ps->charge_design_wh) * 100.0 + 0.5);
+                ps->has_health = TRUE;
+        }
+
+        for (gsize i = 0; i < G_N_ELEMENTS(CHARGE_LIMIT_FILES); i++) {
+                gint64 v;
+
+                tmp = g_build_filename(ps->path, CHARGE_LIMIT_FILES[i], NULL);
+                if (path_exists(tmp) && read_int64(tmp, &v)) {
+                        ps->charge_limit_path = tmp;
+                        ps->has_charge_limit = TRUE;
+                        ps->charge_limit = (gint)v;
+                        return;
+                }
+                g_free(tmp);
+        }
 }
 
 void
@@ -110,66 +175,9 @@ power_supply_refresh(PowerSupply *ps)
                 g_free(cur);
         }
 
-        tmp = g_build_filename(ps->path, "cycle_count", NULL);
-        if (read_int64(tmp, &value) && value > 0) {
-                ps->has_cycle_count = TRUE;
-                ps->cycle_count = (gint)value;
-        } else {
-                ps->has_cycle_count = FALSE;
-        }
-        g_free(tmp);
-
-        tmp = g_build_filename(ps->path, "charge_full", NULL);
-        ps->has_charge_full = read_double(tmp, &ps->charge_full_wh);
-        if (ps->has_charge_full)
-                ps->charge_full_wh /= 1000000.0;
-        g_free(tmp);
-
-        tmp = g_build_filename(ps->path, "energy_full", NULL);
-        if (!ps->has_charge_full &&
-            read_double(tmp, &ps->charge_full_wh)) {
-                ps->has_charge_full = TRUE;
-                ps->charge_full_wh /= 1000000.0;
-        }
-        g_free(tmp);
-
-        tmp = g_build_filename(ps->path, "charge_full_design", NULL);
-        ps->has_charge_design = read_double(tmp, &ps->charge_design_wh);
-        if (ps->has_charge_design)
-                ps->charge_design_wh /= 1000000.0;
-        g_free(tmp);
-
-        tmp = g_build_filename(ps->path, "energy_full_design", NULL);
-        if (!ps->has_charge_design &&
-            read_double(tmp, &ps->charge_design_wh)) {
-                ps->has_charge_design = TRUE;
-                ps->charge_design_wh /= 1000000.0;
-        }
-        g_free(tmp);
-
-        if (ps->has_charge_full && ps->has_charge_design &&
-            ps->charge_design_wh > 0) {
-                ps->health = (gint)((ps->charge_full_wh /
-                                     ps->charge_design_wh) * 100.0 + 0.5);
-                ps->has_health = TRUE;
-        }
-
-        for (gsize i = 0; i < G_N_ELEMENTS(CHARGE_LIMIT_FILES); i++) {
-                tmp = g_build_filename(ps->path, CHARGE_LIMIT_FILES[i], NULL);
-                if (path_exists(tmp)) {
-                        gint64 v;
-                        if (read_int64(tmp, &v)) {
-                                g_free(ps->charge_limit_path);
-                                ps->charge_limit_path = tmp;
-                                ps->has_charge_limit = TRUE;
-                                ps->charge_limit = (gint)v;
-                                return;
-                        }
-                }
-                g_free(tmp);
-        }
-
-        ps->has_charge_limit = FALSE;
+        if (ps->has_charge_limit && ps->charge_limit_path != NULL &&
+            read_int64(ps->charge_limit_path, &value))
+                ps->charge_limit = (gint)value;
 }
 
 PowerSupply **
