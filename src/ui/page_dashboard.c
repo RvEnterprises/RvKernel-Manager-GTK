@@ -85,7 +85,6 @@ update_ring(GtkWidget *gauge, GtkWidget *detail, gdouble frac,
         gchar *text;
 
         rv_gauge_set_fraction(gauge, frac);
-        rv_gauge_set_text(gauge, "%d%%", (gint)(frac * 100));
         set_severity(gauge, frac);
 
         text = usage_line(used_bytes, total_bytes);
@@ -119,7 +118,6 @@ refresh(GtkWidget *page)
 
         overall = CLAMP(overall < 0 ? 0 : overall, 0.0, 1.0);
         rv_gauge_set_fraction(ctx->cpu_gauge, overall);
-        rv_gauge_set_text(ctx->cpu_gauge, "%d%%", (gint)(overall * 100));
         set_severity(ctx->cpu_gauge, overall);
 
         if (info->mem_total_kb > 0) {

@@ -6,8 +6,14 @@
 #define KEY_STATE "rv-gauge-state"
 #define KEY_CAPTION "rv-gauge-caption"
 
+#define GAUGE_ANIM_DURATION_MS 600
+
 typedef struct {
         gdouble fraction;
+        gdouble target;
+        gdouble start_frac;
+        gint64  start_time;
+        guint   tick_id;
         gchar  *text;
 } RvGaugeState;
 
@@ -18,6 +24,36 @@ gauge_state_free(gpointer data)
 
         g_free(state->text);
         g_free(state);
+}
+
+static gboolean
+gauge_tick(GtkWidget *widget, GdkFrameClock *clock, gpointer user_data)
+{
+        RvGaugeState *state;
+        gdouble t;
+
+        (void)user_data;
+
+        state = g_object_get_data(G_OBJECT(widget), KEY_STATE);
+        if (state == NULL || state->tick_id == 0)
+                return G_SOURCE_REMOVE;
+
+        t = (gdouble)(gdk_frame_clock_get_frame_time(clock) -
+                      state->start_time) /
+            (GAUGE_ANIM_DURATION_MS * 1000.0);
+        if (t >= 1.0) {
+                state->fraction = state->target;
+                state->tick_id = 0;
+                gtk_widget_queue_draw(widget);
+                return G_SOURCE_REMOVE;
+        }
+
+        t = 1.0 - pow(1.0 - t, 3.0);
+        state->fraction = state->start_frac +
+                          (state->target - state->start_frac) * t;
+        gtk_widget_queue_draw(widget);
+
+        return G_SOURCE_CONTINUE;
 }
 
 static void
@@ -31,6 +67,7 @@ gauge_draw(GtkDrawingArea *area, cairo_t *cr, gint width, gint height,
         GdkRGBA color;
         GdkRGBA dim;
         RvGaugeState *state;
+        gchar value_buf[G_ASCII_DTOSTR_BUF_SIZE];
         const gchar *value, *caption;
         gdouble center_x, center_y, radius, stroke, sweep;
         gint side, tw, th;
@@ -40,7 +77,16 @@ gauge_draw(GtkDrawingArea *area, cairo_t *cr, gint width, gint height,
         widget = GTK_WIDGET(area);
         state = g_object_get_data(G_OBJECT(area), KEY_STATE);
         caption = g_object_get_data(G_OBJECT(area), KEY_CAPTION);
-        value = state != NULL ? state->text : "";
+        if (state == NULL)
+                return;
+
+        if (state->text != NULL && state->text[0] != '\0') {
+                value = state->text;
+        } else {
+                g_snprintf(value_buf, sizeof(value_buf), "%d%%",
+                           (gint)(state->fraction * 100.0 + 0.5));
+                value = value_buf;
+        }
 
         gtk_widget_get_color(widget, &color);
 
@@ -163,11 +209,17 @@ rv_gauge_set_fraction(GtkWidget *gauge, gdouble fraction)
                 return;
 
         fraction = CLAMP(fraction, 0.0, 1.0);
-        if (fraction == state->fraction)
+        if (fraction == state->target && state->tick_id == 0)
                 return;
 
-        state->fraction = fraction;
-        gtk_widget_queue_draw(gauge);
+        state->target = fraction;
+        state->start_frac = state->fraction;
+        state->start_time = g_get_monotonic_time();
+
+        if (state->tick_id == 0)
+                state->tick_id =
+                        gtk_widget_add_tick_callback(gauge, gauge_tick,
+                                                     NULL, NULL);
 }
 
 void
