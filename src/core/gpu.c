@@ -22,12 +22,12 @@ static const struct {
 };
 
 static gchar **
-read_tokens_from_file(const gchar *path)
+read_tokens_from_file(const gchar *dir, const gchar *name)
 {
         gchar *text;
         gchar **tokens;
 
-        text = read_trimmed(path);
+        text = read_trimmed_in(dir, name);
         tokens = text != NULL ? tokenize_ws(text) : g_new0(gchar *, 1);
         g_free(text);
         return tokens;
@@ -36,12 +36,8 @@ read_tokens_from_file(const gchar *path)
 static void
 devfreq_read_governors(Devfreq *d)
 {
-        gchar *tmp;
-        gchar **tokens;
-
-        tmp = g_build_filename(d->devfreq_path, "available_governors", NULL);
-        tokens = read_tokens_from_file(tmp);
-        g_free(tmp);
+        gchar **tokens = read_tokens_from_file(d->devfreq_path,
+                                               "available_governors");
 
         if (tokens[0] == NULL) {
                 g_strfreev(tokens);
@@ -67,31 +63,20 @@ devfreq_new(const gchar *path, const gchar *name)
 void
 devfreq_refresh(Devfreq *d)
 {
-        gchar *tmp;
-
         if (d == NULL)
                 return;
 
         g_free(d->governor);
+        d->governor = read_first_line_in(d->devfreq_path, "governor");
+
         g_free(d->cur_freq_hz);
+        d->cur_freq_hz = read_first_line_in(d->devfreq_path, "cur_freq");
+
         g_free(d->min_freq_hz);
+        d->min_freq_hz = read_first_line_in(d->devfreq_path, "min_freq");
+
         g_free(d->max_freq_hz);
-
-        tmp = g_build_filename(d->devfreq_path, "governor", NULL);
-        d->governor = read_first_line(tmp);
-        g_free(tmp);
-
-        tmp = g_build_filename(d->devfreq_path, "cur_freq", NULL);
-        d->cur_freq_hz = read_first_line(tmp);
-        g_free(tmp);
-
-        tmp = g_build_filename(d->devfreq_path, "min_freq", NULL);
-        d->min_freq_hz = read_first_line(tmp);
-        g_free(tmp);
-
-        tmp = g_build_filename(d->devfreq_path, "max_freq", NULL);
-        d->max_freq_hz = read_first_line(tmp);
-        g_free(tmp);
+        d->max_freq_hz = read_first_line_in(d->devfreq_path, "max_freq");
 }
 
 Devfreq **
@@ -162,13 +147,10 @@ devfreq_set_max_freq(Devfreq *d, gint64 hz, GError **error)
 static void
 card_parse_uevent(GpuCard *card)
 {
-        gchar *uevent;
         gchar **lines;
-        gsize n_lines = 0;
 
-        uevent = g_build_filename(card->card_path, "device", "uevent", NULL);
-        lines = split_lines(read_trimmed(uevent), &n_lines);
-        g_free(uevent);
+        lines = split_lines(read_trimmed_in(card->device_path, "uevent"),
+                            NULL);
 
         for (gsize i = 0; lines[i] != NULL; i++) {
                 if (g_str_has_prefix(lines[i], "DRIVER=")) {
@@ -200,64 +182,52 @@ card_parse_uevent(GpuCard *card)
 static void
 card_read_extras(GpuCard *card)
 {
-        gchar *tmp;
+        gchar *levels;
 
         g_free(card->busy_percent);
         g_free(card->cur_clock_note);
         card->busy_percent = NULL;
         card->cur_clock_note = NULL;
 
-        tmp = g_build_filename(card->card_path, "device",
-                               "gpu_busy_percent", NULL);
-        if (path_exists(tmp)) {
-                card->has_busy_percent = TRUE;
-                card->busy_percent = read_first_line(tmp);
-        }
-        g_free(tmp);
+        card->busy_percent = read_first_line_in(card->device_path,
+                                                "gpu_busy_percent");
+        card->has_busy_percent = card->busy_percent != NULL;
 
-        tmp = g_build_filename(card->card_path, "device",
-                               "gt_cur_freq_mhz", NULL);
-        card->cur_clock_note = read_first_line(tmp);
+        card->cur_clock_note = read_first_line_in(card->device_path,
+                                                  "gt_cur_freq_mhz");
         if (card->cur_clock_note != NULL) {
                 gchar *mhz = g_strdup_printf("%s MHz",
                                              card->cur_clock_note);
                 g_free(card->cur_clock_note);
                 card->cur_clock_note = mhz;
-                g_free(tmp);
                 return;
         }
-        g_free(tmp);
 
-        tmp = g_build_filename(card->card_path, "device", "pp_dpm_sclk",
-                               NULL);
-        {
-                gchar *levels = read_trimmed(tmp);
-                if (levels != NULL) {
-                        gchar **lines = split_lines(levels, NULL);
-                        for (gsize i = 0; lines[i] != NULL; i++) {
-                                if (strchr(lines[i], '*') == NULL)
-                                        continue;
-                                gchar *colon = strchr(lines[i], ':');
-                                if (colon != NULL) {
-                                        gchar *clean =
-                                                g_strdup(colon + 1);
-                                        gchar *star;
+        levels = read_trimmed_in(card->device_path, "pp_dpm_sclk");
+        if (levels != NULL) {
+                gchar **lines = split_lines(levels, NULL);
+                for (gsize i = 0; lines[i] != NULL; i++) {
+                        if (strchr(lines[i], '*') == NULL)
+                                continue;
+                        gchar *colon = strchr(lines[i], ':');
+                        if (colon != NULL) {
+                                gchar *clean =
+                                        g_strdup(colon + 1);
+                                gchar *star;
 
-                                        for (gchar *q = clean; *q; q++)
-                                                if (*q == '*')
-                                                        *q = ' ';
-                                        star = g_strstrip(clean);
-                                        card->cur_clock_note =
-                                                g_strdup(star);
-                                        g_free(clean);
-                                }
-                                break;
+                                for (gchar *q = clean; *q; q++)
+                                        if (*q == '*')
+                                                *q = ' ';
+                                star = g_strstrip(clean);
+                                card->cur_clock_note =
+                                        g_strdup(star);
+                                g_free(clean);
                         }
-                        g_strfreev(lines);
+                        break;
                 }
-                g_free(levels);
+                g_strfreev(lines);
         }
-        g_free(tmp);
+        g_free(levels);
 }
 
 GpuCard *
@@ -269,8 +239,9 @@ gpu_card_new(const gchar *card_path, const gchar *card_name)
 
         card->card_path = g_strdup(card_path);
         card->card_name = g_strdup(card_name);
+        card->device_path = g_build_filename(card_path, "device", NULL);
 
-        link_path = g_build_filename(card_path, "device", "devfreq", NULL);
+        link_path = g_build_filename(card->device_path, "devfreq", NULL);
         df_path = realpath(link_path, NULL);
         if (df_path != NULL) {
                 card->devfreq = devfreq_new(df_path, card_name);
@@ -304,6 +275,7 @@ gpu_card_free(GpuCard *card)
         devfreq_free(card->devfreq);
         g_free(card->card_path);
         g_free(card->card_name);
+        g_free(card->device_path);
         g_free(card->driver);
         g_free(card->vendor_name);
         g_free(card->pci_id);

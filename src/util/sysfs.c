@@ -114,6 +114,56 @@ read_double(const gchar *path, gdouble *out_value)
         return TRUE;
 }
 
+#define JOIN_BUF_SIZE 4096
+
+gchar *
+read_trimmed_in(const gchar *dir, const gchar *name)
+{
+        gchar path[JOIN_BUF_SIZE];
+
+        if (dir == NULL || name == NULL)
+                return NULL;
+
+        g_snprintf(path, sizeof(path), "%s/%s", dir, name);
+        return read_trimmed(path);
+}
+
+gchar *
+read_first_line_in(const gchar *dir, const gchar *name)
+{
+        gchar path[JOIN_BUF_SIZE];
+
+        if (dir == NULL || name == NULL)
+                return NULL;
+
+        g_snprintf(path, sizeof(path), "%s/%s", dir, name);
+        return read_first_line(path);
+}
+
+gboolean
+read_int64_in(const gchar *dir, const gchar *name, gint64 *out_value)
+{
+        gchar path[JOIN_BUF_SIZE];
+
+        if (dir == NULL || name == NULL)
+                return FALSE;
+
+        g_snprintf(path, sizeof(path), "%s/%s", dir, name);
+        return read_int64(path, out_value);
+}
+
+gboolean
+read_double_in(const gchar *dir, const gchar *name, gdouble *out_value)
+{
+        gchar path[JOIN_BUF_SIZE];
+
+        if (dir == NULL || name == NULL)
+                return FALSE;
+
+        g_snprintf(path, sizeof(path), "%s/%s", dir, name);
+        return read_double(path, out_value);
+}
+
 gboolean
 path_exists(const gchar *path)
 {

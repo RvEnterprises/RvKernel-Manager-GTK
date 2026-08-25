@@ -41,20 +41,15 @@ zram_parse_active_algo(const gchar *text)
 static void
 zram_read_static(Zram *z)
 {
-        gchar *tmp;
         gchar *text;
         gint64 bytes;
 
-        tmp = g_build_filename(z->path, "disksize", NULL);
-        if (read_int64(tmp, &bytes) && bytes > 0) {
+        if (read_int64_in(z->path, "disksize", &bytes) && bytes > 0) {
                 z->disksize_bytes = (guint64)bytes;
                 z->disksize_str = format_bytes((guint64)bytes);
         }
-        g_free(tmp);
 
-        tmp = g_build_filename(z->path, "comp_algorithm", NULL);
-        text = read_trimmed(tmp);
-        g_free(tmp);
+        text = read_trimmed_in(z->path, "comp_algorithm");
 
         z->algo = text != NULL ? zram_parse_active_algo(text) : NULL;
         if (z->algo == NULL && text != NULL && text[0] != '\0') {
@@ -100,15 +95,12 @@ zram_new(const gchar *path, const gchar *name)
 void
 zram_refresh(Zram *z)
 {
-        gchar *tmp;
         gchar *text;
 
         if (z == NULL)
                 return;
 
-        tmp = g_build_filename(z->path, "mm_stat", NULL);
-        text = read_trimmed(tmp);
-        g_free(tmp);
+        text = read_trimmed_in(z->path, "mm_stat");
         z->has_stats = FALSE;
         if (text != NULL) {
                 gint64 *values = NULL;

@@ -33,7 +33,6 @@ static PowerSupply *
 power_supply_new(const gchar *path, const gchar *name)
 {
         PowerSupply *ps = g_new0(PowerSupply, 1);
-        gchar *tmp;
 
         ps->path = g_strdup(path);
         ps->name = g_strdup(name);
@@ -42,9 +41,7 @@ power_supply_new(const gchar *path, const gchar *name)
         ps->cycle_count = -1;
         ps->charge_limit = -1;
 
-        tmp = g_build_filename(path, "type", NULL);
-        ps->kind = kind_from_type(read_first_line(tmp));
-        g_free(tmp);
+        ps->kind = kind_from_type(read_first_line_in(path, "type"));
 
         power_supply_read_static(ps);
         power_supply_refresh(ps);
@@ -55,43 +52,36 @@ power_supply_new(const gchar *path, const gchar *name)
 static void
 power_supply_read_static(PowerSupply *ps)
 {
-        gchar *tmp;
         gint64 value;
 
-        tmp = g_build_filename(ps->path, "cycle_count", NULL);
-        if (read_int64(tmp, &value) && value > 0) {
+        if (read_int64_in(ps->path, "cycle_count", &value) && value > 0) {
                 ps->has_cycle_count = TRUE;
                 ps->cycle_count = (gint)value;
         }
-        g_free(tmp);
 
-        tmp = g_build_filename(ps->path, "charge_full", NULL);
-        ps->has_charge_full = read_double(tmp, &ps->charge_full_wh);
+        ps->has_charge_full = read_double_in(ps->path, "charge_full",
+                                             &ps->charge_full_wh);
         if (ps->has_charge_full)
                 ps->charge_full_wh /= 1000000.0;
-        g_free(tmp);
 
-        tmp = g_build_filename(ps->path, "energy_full", NULL);
         if (!ps->has_charge_full &&
-            read_double(tmp, &ps->charge_full_wh)) {
+            read_double_in(ps->path, "energy_full", &ps->charge_full_wh)) {
                 ps->has_charge_full = TRUE;
                 ps->charge_full_wh /= 1000000.0;
         }
-        g_free(tmp);
 
-        tmp = g_build_filename(ps->path, "charge_full_design", NULL);
-        ps->has_charge_design = read_double(tmp, &ps->charge_design_wh);
+        ps->has_charge_design = read_double_in(ps->path,
+                                               "charge_full_design",
+                                               &ps->charge_design_wh);
         if (ps->has_charge_design)
                 ps->charge_design_wh /= 1000000.0;
-        g_free(tmp);
 
-        tmp = g_build_filename(ps->path, "energy_full_design", NULL);
         if (!ps->has_charge_design &&
-            read_double(tmp, &ps->charge_design_wh)) {
+            read_double_in(ps->path, "energy_full_design",
+                           &ps->charge_design_wh)) {
                 ps->has_charge_design = TRUE;
                 ps->charge_design_wh /= 1000000.0;
         }
-        g_free(tmp);
 
         if (ps->has_charge_full && ps->has_charge_design &&
             ps->charge_design_wh > 0) {
@@ -101,70 +91,58 @@ power_supply_read_static(PowerSupply *ps)
         }
 
         for (gsize i = 0; i < G_N_ELEMENTS(CHARGE_LIMIT_FILES); i++) {
-                gint64 v;
-
-                tmp = g_build_filename(ps->path, CHARGE_LIMIT_FILES[i], NULL);
-                if (path_exists(tmp) && read_int64(tmp, &v)) {
-                        ps->charge_limit_path = tmp;
+                if (read_int64_in(ps->path, CHARGE_LIMIT_FILES[i], &value)) {
+                        g_free(ps->charge_limit_path);
+                        ps->charge_limit_path =
+                                g_build_filename(ps->path,
+                                                 CHARGE_LIMIT_FILES[i],
+                                                 NULL);
                         ps->has_charge_limit = TRUE;
-                        ps->charge_limit = (gint)v;
+                        ps->charge_limit = (gint)value;
                         return;
                 }
-                g_free(tmp);
         }
 }
 
 void
 power_supply_refresh(PowerSupply *ps)
 {
-        gchar *tmp;
         gint64 value;
 
         if (ps == NULL)
                 return;
 
-        tmp = g_build_filename(ps->path, "status", NULL);
         g_free(ps->status);
-        ps->status = read_first_line(tmp);
+        ps->status = read_first_line_in(ps->path, "status");
         if (ps->status == NULL)
                 ps->status = g_strdup("Unknown");
-        g_free(tmp);
 
         if (ps->kind != PS_BATTERY) {
-                tmp = g_build_filename(ps->path, "online", NULL);
-                ps->online = path_exists(tmp) &&
-                             read_int64(tmp, &value) && value > 0;
-                g_free(tmp);
+                ps->online = read_int64_in(ps->path, "online", &value) &&
+                             value > 0;
                 return;
         }
 
-        tmp = g_build_filename(ps->path, "capacity", NULL);
-        if (!read_int64(tmp, &value))
+        if (!read_int64_in(ps->path, "capacity", &value))
                 value = -1;
         ps->capacity = (gint)value;
-        g_free(tmp);
 
-        tmp = g_build_filename(ps->path, "temp", NULL);
-        ps->has_temp = read_double(tmp, &ps->temp_c);
+        ps->has_temp = read_double_in(ps->path, "temp", &ps->temp_c);
         if (ps->has_temp)
                 ps->temp_c /= 10.0;
-        g_free(tmp);
 
-        tmp = g_build_filename(ps->path, "voltage_now", NULL);
-        ps->has_voltage = read_double(tmp, &ps->voltage_v);
+        ps->has_voltage = read_double_in(ps->path, "voltage_now",
+                                         &ps->voltage_v);
         if (ps->has_voltage)
                 ps->voltage_v /= 1000000.0;
-        g_free(tmp);
 
-        tmp = g_build_filename(ps->path, "power_now", NULL);
-        ps->has_power = read_double(tmp, &ps->power_w);
+        ps->has_power = read_double_in(ps->path, "power_now", &ps->power_w);
         if (ps->has_power)
                 ps->power_w /= 1000000.0;
-        g_free(tmp);
 
         if (!ps->has_power) {
-                gchar *cur = g_build_filename(ps->path, "current_now", NULL);
-                ps->has_current = read_double(cur, &ps->current_a);
+                ps->has_current = read_double_in(ps->path, "current_now",
+                                                 &ps->current_a);
                 if (ps->has_current) {
                         ps->current_a /= 1000000.0;
                         if (ps->has_voltage) {
@@ -172,7 +150,6 @@ power_supply_refresh(PowerSupply *ps)
                                 ps->has_power = TRUE;
                         }
                 }
-                g_free(cur);
         }
 
         if (ps->has_charge_limit && ps->charge_limit_path != NULL &&

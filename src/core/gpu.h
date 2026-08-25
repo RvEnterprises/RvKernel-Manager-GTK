@@ -18,6 +18,7 @@ typedef struct {
 typedef struct {
         gchar      *card_path;
         gchar      *card_name;
+        gchar      *device_path;
         gchar      *driver;
         gchar      *vendor_name;
         gchar      *pci_id;
