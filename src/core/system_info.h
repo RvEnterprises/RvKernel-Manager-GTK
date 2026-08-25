@@ -1,5 +1,5 @@
-#ifndef RV_CORE_SYSTEM_INFO_H
-#define RV_CORE_SYSTEM_INFO_H
+#ifndef CORE_SYSTEM_INFO_H
+#define CORE_SYSTEM_INFO_H
 
 #include <glib.h>
 
@@ -8,7 +8,7 @@ G_BEGIN_DECLS
 typedef struct {
         guint64 idle;
         guint64 total;
-} RvCpuSample;
+} CpuSample;
 
 typedef struct {
         gchar   *hostname;
@@ -25,13 +25,13 @@ typedef struct {
         guint64  swap_free_kb;
         guint64  disk_swap_total_kb;
         guint64  disk_swap_used_kb;
-} RvSystemInfo;
+} SystemInfo;
 
-RvSystemInfo *rv_system_info_get     (void);
-void          rv_system_info_free    (RvSystemInfo *info);
+SystemInfo *system_info_get     (void);
+void          system_info_free    (SystemInfo *info);
 
-gsize         rv_cpu_sample_count    (void);
-void          rv_cpu_usage_sample    (RvCpuSample *prev,
+gsize         cpu_sample_count    (void);
+void          cpu_usage_sample    (CpuSample *prev,
                                       gdouble     *per_core,
                                       gsize        n_cores,
                                       gdouble     *overall);

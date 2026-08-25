@@ -1,5 +1,5 @@
-#ifndef RV_CORE_GPU_H
-#define RV_CORE_GPU_H
+#ifndef CORE_GPU_H
+#define CORE_GPU_H
 
 #include <glib.h>
 
@@ -13,7 +13,7 @@ typedef struct {
         gchar    *cur_freq_hz;
         gchar    *min_freq_hz;
         gchar    *max_freq_hz;
-} RvDevfreq;
+} Devfreq;
 
 typedef struct {
         gchar      *card_path;
@@ -21,30 +21,30 @@ typedef struct {
         gchar      *driver;
         gchar      *vendor_name;
         gchar      *pci_id;
-        RvDevfreq  *devfreq;
+        Devfreq  *devfreq;
         gboolean    has_busy_percent;
         gchar      *busy_percent;
         gchar      *cur_clock_note;
-} RvGpuCard;
+} GpuCard;
 
-void          rv_devfreq_refresh (RvDevfreq *d);
-RvDevfreq   **rv_devfreq_list    (gsize *count);
-void          rv_devfreq_free    (RvDevfreq *d);
+void          devfreq_refresh (Devfreq *d);
+Devfreq   **devfreq_list    (gsize *count);
+void          devfreq_free    (Devfreq *d);
 
-gboolean      rv_devfreq_set_governor (RvDevfreq  *d,
+gboolean      devfreq_set_governor (Devfreq  *d,
                                        const gchar *governor,
                                        GError     **error);
-gboolean      rv_devfreq_set_min_freq (RvDevfreq  *d,
+gboolean      devfreq_set_min_freq (Devfreq  *d,
                                        gint64       hz,
                                        GError     **error);
-gboolean      rv_devfreq_set_max_freq (RvDevfreq  *d,
+gboolean      devfreq_set_max_freq (Devfreq  *d,
                                        gint64       hz,
                                        GError     **error);
 
-RvGpuCard   **rv_gpu_cards       (gsize *count);
-void          rv_gpu_card_refresh(RvGpuCard *card);
-void          rv_gpu_card_free   (RvGpuCard *card);
-void          rv_gpu_cards_free  (RvGpuCard **cards, gsize count);
+GpuCard   **gpu_cards       (gsize *count);
+void          gpu_card_refresh(GpuCard *card);
+void          gpu_card_free   (GpuCard *card);
+void          gpu_cards_free  (GpuCard **cards, gsize count);
 
 G_END_DECLS
 

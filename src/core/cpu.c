@@ -10,8 +10,8 @@ static const char *const CPU_BASE = "/sys/devices/system/cpu";
 static gint
 cmp_policy_cpus_desc(gconstpointer a, gconstpointer b)
 {
-        const RvCpuPolicy *pa = *(const RvCpuPolicy *const *)a;
-        const RvCpuPolicy *pb = *(const RvCpuPolicy *const *)b;
+        const CpuPolicy *pa = *(const CpuPolicy *const *)a;
+        const CpuPolicy *pb = *(const CpuPolicy *const *)b;
 
         return strcmp(pa->cpus_desc, pb->cpus_desc);
 }
@@ -32,14 +32,14 @@ read_token_list(const gchar *path)
         gchar *text;
         gchar **tokens;
 
-        text = rv_read_trimmed(path);
-        tokens = text != NULL ? rv_tokenize_ws(text) : g_new0(gchar *, 1);
+        text = read_trimmed(path);
+        tokens = text != NULL ? tokenize_ws(text) : g_new0(gchar *, 1);
         g_free(text);
         return tokens;
 }
 
 static void
-policy_read_state(RvCpuPolicy *p)
+policy_read_state(CpuPolicy *p)
 {
         gchar *tmp;
 
@@ -50,31 +50,31 @@ policy_read_state(RvCpuPolicy *p)
         g_free(p->max_freq_khz);
 
         tmp = g_build_filename(p->path, "scaling_governor", NULL);
-        p->governor = rv_read_first_line(tmp);
+        p->governor = read_first_line(tmp);
         g_free(tmp);
 
         tmp = g_build_filename(p->path, "scaling_cur_freq", NULL);
-        p->cur_freq_khz = rv_read_first_line(tmp);
+        p->cur_freq_khz = read_first_line(tmp);
         g_free(tmp);
 
         tmp = g_build_filename(p->path, "scaling_min_freq", NULL);
-        p->min_freq_khz = rv_read_first_line(tmp);
+        p->min_freq_khz = read_first_line(tmp);
         g_free(tmp);
 
         tmp = g_build_filename(p->path, "scaling_max_freq", NULL);
-        p->max_freq_khz = rv_read_first_line(tmp);
+        p->max_freq_khz = read_first_line(tmp);
         g_free(tmp);
 
         if (p->has_epp) {
                 tmp = g_build_filename(p->path,
                                        "energy_performance_preference", NULL);
-                p->epp = rv_read_first_line(tmp);
+                p->epp = read_first_line(tmp);
                 g_free(tmp);
         }
 }
 
 static void
-policy_load_freqs(RvCpuPolicy *p)
+policy_load_freqs(CpuPolicy *p)
 {
         gchar *text;
 
@@ -84,9 +84,9 @@ policy_load_freqs(RvCpuPolicy *p)
         text = g_build_filename(p->path, "scaling_available_frequencies",
                                 NULL);
         {
-                gchar *list = rv_read_trimmed(text);
+                gchar *list = read_trimmed(text);
                 if (list != NULL && list[0] != '\0')
-                        p->freqs_khz = rv_parse_int_list(list, &p->n_freqs);
+                        p->freqs_khz = parse_int_list(list, &p->n_freqs);
                 g_free(list);
         }
         g_free(text);
@@ -97,11 +97,11 @@ policy_load_freqs(RvCpuPolicy *p)
                 gchar *tmp;
 
                 tmp = g_build_filename(p->path, "scaling_min_freq", NULL);
-                have_min = rv_read_int64(tmp, &min);
+                have_min = read_int64(tmp, &min);
                 g_free(tmp);
 
                 tmp = g_build_filename(p->path, "scaling_max_freq", NULL);
-                have_max = rv_read_int64(tmp, &max);
+                have_max = read_int64(tmp, &max);
                 g_free(tmp);
 
                 if (!have_min || !have_max || min == max) {
@@ -123,13 +123,13 @@ policy_load_freqs(RvCpuPolicy *p)
         }
 }
 
-static RvCpuPolicy *
+static CpuPolicy *
 load_policy(const gchar *dir_path)
 {
-        RvCpuPolicy *p;
+        CpuPolicy *p;
         gchar *tmp;
 
-        p = g_new0(RvCpuPolicy, 1);
+        p = g_new0(CpuPolicy, 1);
         p->path = g_strdup(dir_path);
         p->cpus_desc = g_path_get_basename(dir_path);
 
@@ -141,14 +141,14 @@ load_policy(const gchar *dir_path)
                 g_strfreev(p->governors);
                 p->governors = g_new0(gchar *, 2);
                 tmp = g_build_filename(dir_path, "scaling_governor", NULL);
-                p->governors[0] = rv_read_first_line(tmp);
+                p->governors[0] = read_first_line(tmp);
                 g_free(tmp);
         }
 
         tmp = g_build_filename(dir_path,
                                "energy_performance_available_preferences",
                                NULL);
-        p->has_epp = rv_path_exists(tmp);
+        p->has_epp = path_exists(tmp);
         g_free(tmp);
 
         if (p->has_epp) {
@@ -165,8 +165,8 @@ load_policy(const gchar *dir_path)
         return p;
 }
 
-RvCpuPolicy **
-rv_cpu_policies(gsize *count)
+CpuPolicy **
+cpu_policies(gsize *count)
 {
         GPtrArray *result = g_ptr_array_new();
         GPtrArray *seen_paths = g_ptr_array_new_with_free_func(g_free);
@@ -174,7 +174,7 @@ rv_cpu_policies(gsize *count)
         gsize n_entries = 0;
         gchar **entries;
 
-        entries = rv_list_dir(cpufreq_dir, &n_entries);
+        entries = list_dir(cpufreq_dir, &n_entries);
         for (gsize i = 0; i < n_entries; i++) {
                 gchar *path;
                 gchar *rp;
@@ -210,7 +210,7 @@ rv_cpu_policies(gsize *count)
                 gsize n_cpus = 0;
                 gchar **cpus;
 
-                cpus = rv_list_dir(CPU_BASE, &n_cpus);
+                cpus = list_dir(CPU_BASE, &n_cpus);
                 for (gsize i = 0; i < n_cpus; i++) {
                         gchar *cf;
                         gchar *full;
@@ -222,7 +222,7 @@ rv_cpu_policies(gsize *count)
 
                         full = g_build_filename(CPU_BASE, cpus[i], NULL);
                         cf = g_build_filename(full, "cpufreq", NULL);
-                        if (rv_is_dir(cf))
+                        if (is_dir(cf))
                                 g_ptr_array_add(result, load_policy(cf));
                         g_free(cf);
                         g_free(full);
@@ -237,11 +237,11 @@ rv_cpu_policies(gsize *count)
         if (count != NULL)
                 *count = result->len;
         g_ptr_array_add(result, NULL);
-        return (RvCpuPolicy **)g_ptr_array_free(result, FALSE);
+        return (CpuPolicy **)g_ptr_array_free(result, FALSE);
 }
 
 void
-rv_cpu_policy_free(RvCpuPolicy *p)
+cpu_policy_free(CpuPolicy *p)
 {
         if (p == NULL)
                 return;
@@ -259,48 +259,48 @@ rv_cpu_policy_free(RvCpuPolicy *p)
 }
 
 void
-rv_cpu_policies_free(RvCpuPolicy **policies, gsize count)
+cpu_policies_free(CpuPolicy **policies, gsize count)
 {
         if (policies == NULL)
                 return;
         for (gsize i = 0; i < count; i++)
-                rv_cpu_policy_free(policies[i]);
+                cpu_policy_free(policies[i]);
         g_free(policies);
 }
 
 gboolean
-rv_cpu_set_governor(RvCpuPolicy *policy, const gchar *governor, GError **error)
+cpu_set_governor(CpuPolicy *policy, const gchar *governor, GError **error)
 {
         gchar *path = g_build_filename(policy->path, "scaling_governor", NULL);
-        gboolean ok = rv_write_string(path, governor, error);
+        gboolean ok = write_string(path, governor, error);
         g_free(path);
         return ok;
 }
 
 gboolean
-rv_cpu_set_epp(RvCpuPolicy *policy, const gchar *preference, GError **error)
+cpu_set_epp(CpuPolicy *policy, const gchar *preference, GError **error)
 {
         gchar *path = g_build_filename(policy->path,
                                        "energy_performance_preference", NULL);
-        gboolean ok = rv_write_string(path, preference, error);
+        gboolean ok = write_string(path, preference, error);
         g_free(path);
         return ok;
 }
 
 gboolean
-rv_cpu_set_min_freq(RvCpuPolicy *policy, gint64 khz, GError **error)
+cpu_set_min_freq(CpuPolicy *policy, gint64 khz, GError **error)
 {
         gchar *path = g_build_filename(policy->path, "scaling_min_freq", NULL);
-        gboolean ok = rv_write_int64(path, khz, error);
+        gboolean ok = write_int64(path, khz, error);
         g_free(path);
         return ok;
 }
 
 gboolean
-rv_cpu_set_max_freq(RvCpuPolicy *policy, gint64 khz, GError **error)
+cpu_set_max_freq(CpuPolicy *policy, gint64 khz, GError **error)
 {
         gchar *path = g_build_filename(policy->path, "scaling_max_freq", NULL);
-        gboolean ok = rv_write_int64(path, khz, error);
+        gboolean ok = write_int64(path, khz, error);
         g_free(path);
         return ok;
 }

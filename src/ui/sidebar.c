@@ -6,12 +6,12 @@ typedef struct {
         gulong items_changed_id;
         gulong visible_child_id;
         gboolean syncing;
-} RvSidebar;
+} Sidebar;
 
 static void
 ctx_free(gpointer data)
 {
-        RvSidebar *self = data;
+        Sidebar *self = data;
 
         if (self->stack != NULL) {
                 g_signal_handler_disconnect(
@@ -27,7 +27,7 @@ ctx_free(gpointer data)
 static void
 update_row(GtkWidget *row)
 {
-        GtkStackPage *page = g_object_get_data(G_OBJECT(row), "rv-page");
+        GtkStackPage *page = g_object_get_data(G_OBJECT(row), "page");
         GtkWidget *box = gtk_list_box_row_get_child(GTK_LIST_BOX_ROW(row));
         GtkWidget *icon = gtk_widget_get_first_child(box);
         GtkWidget *label = gtk_widget_get_next_sibling(icon);
@@ -83,7 +83,7 @@ create_row(GtkStackPage *page)
         gtk_box_append(GTK_BOX(box), label);
         gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), box);
 
-        g_object_set_data_full(G_OBJECT(row), "rv-page",
+        g_object_set_data_full(G_OBJECT(row), "page",
                                g_object_ref(page), g_object_unref);
         g_signal_connect_object(page, "notify",
                                 G_CALLBACK(page_notify_cb), row, 0);
@@ -92,7 +92,7 @@ create_row(GtkStackPage *page)
 }
 
 static void
-sync_selection(RvSidebar *self)
+sync_selection(Sidebar *self)
 {
         GtkWidget *visible, *row;
 
@@ -103,7 +103,7 @@ sync_selection(RvSidebar *self)
 
                 if (!GTK_IS_LIST_BOX_ROW(row))
                         continue;
-                page = g_object_get_data(G_OBJECT(row), "rv-page");
+                page = g_object_get_data(G_OBJECT(row), "page");
                 if (page != NULL &&
                     gtk_stack_page_get_child(page) == visible) {
                         gtk_list_box_select_row(self->list,
@@ -117,7 +117,7 @@ sync_selection(RvSidebar *self)
 static void
 visible_child_cb(GObject *obj, GParamSpec *pspec, gpointer user_data)
 {
-        RvSidebar *self = user_data;
+        Sidebar *self = user_data;
 
         (void)obj;
         (void)pspec;
@@ -129,20 +129,20 @@ visible_child_cb(GObject *obj, GParamSpec *pspec, gpointer user_data)
 static void
 row_selected_cb(GtkListBox *list, GtkListBoxRow *row, gpointer user_data)
 {
-        RvSidebar *self = user_data;
+        Sidebar *self = user_data;
         GtkStackPage *page;
 
         (void)list;
         if (self->syncing || row == NULL)
                 return;
-        page = g_object_get_data(G_OBJECT(row), "rv-page");
+        page = g_object_get_data(G_OBJECT(row), "page");
         if (page != NULL)
                 gtk_stack_set_visible_child(
                         self->stack, gtk_stack_page_get_child(page));
 }
 
 static void
-rebuild_rows(RvSidebar *self)
+rebuild_rows(Sidebar *self)
 {
         GtkSelectionModel *model;
         guint i, n;
@@ -174,7 +174,7 @@ static void
 items_changed_cb(GListModel *model, guint position, guint removed,
                  guint added, gpointer user_data)
 {
-        RvSidebar *self = user_data;
+        Sidebar *self = user_data;
 
         (void)model;
         (void)position;
@@ -184,19 +184,19 @@ items_changed_cb(GListModel *model, guint position, guint removed,
 }
 
 GtkWidget *
-rv_sidebar_new(void)
+sidebar_new(void)
 {
         GtkWidget *list;
-        RvSidebar *self;
+        Sidebar *self;
 
         list = gtk_list_box_new();
         gtk_list_box_set_selection_mode(GTK_LIST_BOX(list),
                                         GTK_SELECTION_SINGLE);
         gtk_widget_add_css_class(list, "navigation-sidebar");
 
-        self = g_new0(RvSidebar, 1);
+        self = g_new0(Sidebar, 1);
         self->list = GTK_LIST_BOX(list);
-        g_object_set_data_full(G_OBJECT(list), "rv-ctx", self, ctx_free);
+        g_object_set_data_full(G_OBJECT(list), "ctx", self, ctx_free);
 
         g_signal_connect(list, "row-selected",
                          G_CALLBACK(row_selected_cb), self);
@@ -205,9 +205,9 @@ rv_sidebar_new(void)
 }
 
 void
-rv_sidebar_set_stack(GtkWidget *widget, GtkStack *stack)
+sidebar_set_stack(GtkWidget *widget, GtkStack *stack)
 {
-        RvSidebar *self = g_object_get_data(G_OBJECT(widget), "rv-ctx");
+        Sidebar *self = g_object_get_data(G_OBJECT(widget), "ctx");
 
         if (self->stack == stack)
                 return;

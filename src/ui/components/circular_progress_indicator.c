@@ -1,12 +1,12 @@
-#include "gauge.h"
+#include "circular_progress_indicator.h"
 
 #include <math.h>
 #include <pango/pangocairo.h>
 
-#define KEY_STATE "rv-gauge-state"
-#define KEY_CAPTION "rv-gauge-caption"
+#define KEY_STATE "cpi-state"
+#define KEY_CAPTION "cpi-caption"
 
-#define GAUGE_ANIM_DURATION_MS 600
+#define CPI_ANIM_DURATION_MS 600
 
 typedef struct {
         gdouble fraction;
@@ -15,21 +15,21 @@ typedef struct {
         gint64  start_time;
         guint   tick_id;
         gchar  *text;
-} RvGaugeState;
+} CPIState;
 
 static void
-gauge_state_free(gpointer data)
+cpi_state_free(gpointer data)
 {
-        RvGaugeState *state = data;
+        CPIState *state = data;
 
         g_free(state->text);
         g_free(state);
 }
 
 static gboolean
-gauge_tick(GtkWidget *widget, GdkFrameClock *clock, gpointer user_data)
+cpi_tick(GtkWidget *widget, GdkFrameClock *clock, gpointer user_data)
 {
-        RvGaugeState *state;
+        CPIState *state;
         gdouble t;
 
         (void)user_data;
@@ -40,7 +40,7 @@ gauge_tick(GtkWidget *widget, GdkFrameClock *clock, gpointer user_data)
 
         t = (gdouble)(gdk_frame_clock_get_frame_time(clock) -
                       state->start_time) /
-            (GAUGE_ANIM_DURATION_MS * 1000.0);
+            (CPI_ANIM_DURATION_MS * 1000.0);
         if (t >= 1.0) {
                 state->fraction = state->target;
                 state->tick_id = 0;
@@ -57,7 +57,7 @@ gauge_tick(GtkWidget *widget, GdkFrameClock *clock, gpointer user_data)
 }
 
 static void
-gauge_draw(GtkDrawingArea *area, cairo_t *cr, gint width, gint height,
+cpi_draw(GtkDrawingArea *area, cairo_t *cr, gint width, gint height,
            gpointer user_data)
 {
         PangoContext *pango_ctx;
@@ -66,7 +66,7 @@ gauge_draw(GtkDrawingArea *area, cairo_t *cr, gint width, gint height,
         GtkWidget *widget;
         GdkRGBA color;
         GdkRGBA dim;
-        RvGaugeState *state;
+        CPIState *state;
         gchar value_buf[G_ASCII_DTOSTR_BUF_SIZE];
         const gchar *value, *caption;
         gdouble center_x, center_y, radius, stroke, sweep;
@@ -174,22 +174,22 @@ gauge_draw(GtkDrawingArea *area, cairo_t *cr, gint width, gint height,
 }
 
 GtkWidget *
-rv_gauge_new(const gchar *caption)
+circular_progress_indicator_new(const gchar *caption)
 {
         GtkWidget *widget;
 
         widget = gtk_drawing_area_new();
-        gtk_widget_add_css_class(widget, "rv-gauge");
+        gtk_widget_add_css_class(widget, "circular-progress-indicator");
         gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(widget),
                                            148);
         gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(widget),
                                             148);
         gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(widget),
-                                       gauge_draw, NULL, NULL);
+                                       cpi_draw, NULL, NULL);
 
         g_object_set_data_full(G_OBJECT(widget), KEY_STATE,
-                               g_new0(RvGaugeState, 1),
-                               gauge_state_free);
+                               g_new0(CPIState, 1),
+                               cpi_state_free);
         g_object_set_data_full(G_OBJECT(widget), KEY_CAPTION,
                                g_strdup(caption != NULL ? caption : ""),
                                g_free);
@@ -198,13 +198,13 @@ rv_gauge_new(const gchar *caption)
 }
 
 void
-rv_gauge_set_fraction(GtkWidget *gauge, gdouble fraction)
+circular_progress_indicator_set_fraction(GtkWidget *self, gdouble fraction)
 {
-        RvGaugeState *state;
+        CPIState *state;
 
-        g_return_if_fail(GTK_IS_WIDGET(gauge));
+        g_return_if_fail(GTK_IS_WIDGET(self));
 
-        state = g_object_get_data(G_OBJECT(gauge), KEY_STATE);
+        state = g_object_get_data(G_OBJECT(self), KEY_STATE);
         if (state == NULL)
                 return;
 
@@ -218,21 +218,21 @@ rv_gauge_set_fraction(GtkWidget *gauge, gdouble fraction)
 
         if (state->tick_id == 0)
                 state->tick_id =
-                        gtk_widget_add_tick_callback(gauge, gauge_tick,
+                        gtk_widget_add_tick_callback(self, cpi_tick,
                                                      NULL, NULL);
 }
 
 void
-rv_gauge_set_text(GtkWidget *gauge, const gchar *fmt, ...)
+circular_progress_indicator_set_text(GtkWidget *self, const gchar *fmt, ...)
 {
-        RvGaugeState *state;
+        CPIState *state;
         va_list args;
         gchar *text;
 
-        g_return_if_fail(GTK_IS_WIDGET(gauge));
+        g_return_if_fail(GTK_IS_WIDGET(self));
         g_return_if_fail(fmt != NULL);
 
-        state = g_object_get_data(G_OBJECT(gauge), KEY_STATE);
+        state = g_object_get_data(G_OBJECT(self), KEY_STATE);
         if (state == NULL)
                 return;
 
@@ -242,5 +242,5 @@ rv_gauge_set_text(GtkWidget *gauge, const gchar *fmt, ...)
 
         g_free(state->text);
         state->text = text;
-        gtk_widget_queue_draw(gauge);
+        gtk_widget_queue_draw(self);
 }

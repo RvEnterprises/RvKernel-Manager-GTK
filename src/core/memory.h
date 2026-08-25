@@ -1,5 +1,5 @@
-#ifndef RV_CORE_MEMORY_H
-#define RV_CORE_MEMORY_H
+#ifndef CORE_MEMORY_H
+#define CORE_MEMORY_H
 
 #include <glib.h>
 
@@ -16,7 +16,7 @@ typedef struct {
         guint64   compr_bytes;
         guint64   used_bytes;
         gboolean  has_stats;
-} RvZram;
+} Zram;
 
 typedef struct {
         const gchar *name;
@@ -24,24 +24,24 @@ typedef struct {
         gint         min;
         gint         max;
         gint         step;
-} RvVmTunable;
+} VmTunable;
 
-extern const RvVmTunable RV_VM_TUNABLES[];
-extern const gsize       RV_VM_TUNABLES_COUNT;
+extern const VmTunable VM_TUNABLES[];
+extern const gsize       VM_TUNABLES_COUNT;
 
-RvZram     **rv_zram_list      (gsize *count);
-void          rv_zram_refresh   (RvZram *z);
-void          rv_zram_free      (RvZram *z);
-void          rv_zram_list_free (RvZram **list, gsize count);
+Zram     **zram_list      (gsize *count);
+void          zram_refresh   (Zram *z);
+void          zram_free      (Zram *z);
+void          zram_list_free (Zram **list, gsize count);
 
-gboolean      rv_zram_set_algo  (RvZram *z, const gchar *algo, GError **error);
+gboolean      zram_set_algo  (Zram *z, const gchar *algo, GError **error);
 
-gboolean      vm_tunable_get    (const RvVmTunable *t, gint *value);
-gboolean      vm_tunable_set    (const RvVmTunable *t, gint value, GError **error);
+gboolean      vm_tunable_get    (const VmTunable *t, gint *value);
+gboolean      vm_tunable_set    (const VmTunable *t, gint value, GError **error);
 
-gchar       **rv_tcp_cc_list    (gsize *count);
-gchar        *rv_tcp_cc_current (void);
-gboolean      rv_tcp_cc_set     (const gchar *cc, GError **error);
+gchar       **tcp_cc_list    (gsize *count);
+gchar        *tcp_cc_current (void);
+gboolean      tcp_cc_set     (const gchar *cc, GError **error);
 
 G_END_DECLS
 

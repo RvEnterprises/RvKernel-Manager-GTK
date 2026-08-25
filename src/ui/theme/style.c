@@ -17,9 +17,9 @@ typedef struct {
         const gchar *primary;
         const gchar *error;
         const gchar *warn;
-} RvMaterialPalette;
+} MaterialPalette;
 
-static const RvMaterialPalette palette_light = {
+static const MaterialPalette palette_light = {
         .surface = "rgb(249,249,255)",
         .on_surface = "rgb(25,28,32)",
         .on_surface_variant = "rgb(68,71,78)",
@@ -32,7 +32,7 @@ static const RvMaterialPalette palette_light = {
         .warn = "rgb(154,103,0)",
 };
 
-static const RvMaterialPalette palette_dark = {
+static const MaterialPalette palette_dark = {
         .surface = "rgb(17,19,24)",
         .on_surface = "rgb(226,226,233)",
         .on_surface_variant = "rgb(196,198,208)",
@@ -49,7 +49,7 @@ static GtkCssProvider *active_provider = NULL;
 static gint active_dark = -1;
 
 static gchar *
-build_css(const RvMaterialPalette *p)
+build_css(const MaterialPalette *p)
 {
         return g_strdup_printf(
                 "window {"
@@ -60,53 +60,53 @@ build_css(const RvMaterialPalette *p)
                 "  background-color: %s;"
                 "  color: %s;"
                 "}"
-                ".rv-page { padding: 18px 24px 24px; }"
-                ".rv-title {"
+                ".page { padding: 18px 24px 24px; }"
+                ".title {"
                 "  font-size: 26px;"
                 "  font-weight: 800;"
                 "  margin-bottom: 2px;"
                 "}"
-                ".rv-subtitle { margin-bottom: 14px; color: %s; }"
-                ".rv-card {"
+                ".subtitle { margin-bottom: 14px; color: %s; }"
+                ".card {"
                 "  background-color: %s;"
                 "  border: 1px solid %s;"
                 "  border-radius: 12px;"
                 "}"
-                ".rv-card-title {"
+                ".card-title {"
                 "  font-weight: 700;"
                 "  font-size: 108%%;"
                 "  padding: 10px 16px 8px;"
                 "}"
-                ".rv-row { padding: 7px 16px; }"
-                ".rv-key { min-width: 150px; color: %s; }"
-                ".rv-value { font-weight: 600; }"
-                ".rv-banner {"
+                ".row { padding: 7px 16px; }"
+                ".key { min-width: 150px; color: %s; }"
+                ".value { font-weight: 600; }"
+                ".banner {"
                 "  padding: 7px 18px;"
                 "  background-color: %s;"
                 "  color: %s;"
                 "}"
-                ".rv-section { padding: 12px 16px; }"
-                ".rv-gauge { color: %s; }"
-                ".rv-sev-warn { color: %s; }"
-                ".rv-sev-crit { color: %s; }"
-                ".rv-battery-bar { min-height: 10px; }"
-                ".rv-battery-bar trough {"
+                ".section { padding: 12px 16px; }"
+                ".circular-progress-indicator { color: %s; }"
+                ".sev-warn { color: %s; }"
+                ".sev-crit { color: %s; }"
+                ".battery-bar { min-height: 10px; }"
+                ".battery-bar trough {"
                 "  background-color: alpha(%s, 0.12);"
                 "}"
-                ".rv-battery-bar block.filled { background-color: %s; }"
-                ".rv-sidebar-shell {"
+                ".battery-bar block.filled { background-color: %s; }"
+                ".sidebar-shell {"
                 "  box-shadow: 1px 0 2px rgba(0,0,0,0.30),"
                 "              2px 0 6px rgba(0,0,0,0.15);"
                 "}"
-                ".rv-sidebar {"
+                ".sidebar {"
                 "  background-color: %s;"
                 "  padding-top: 6px;"
                 "}"
-                ".rv-sidebar row { border-radius: 8px; }"
-                ".rv-sidebar row:hover {"
+                ".sidebar row { border-radius: 8px; }"
+                ".sidebar row:hover {"
                 "  background-color: alpha(%s, 0.08);"
                 "}"
-                ".rv-sidebar row:selected {"
+                ".sidebar row:selected {"
                 "  background-color: %s;"
                 "  color: %s;"
                 "}",
@@ -130,9 +130,9 @@ build_css(const RvMaterialPalette *p)
 }
 
 void
-rv_style_set_dark(gboolean dark)
+style_set_dark(gboolean dark)
 {
-        const RvMaterialPalette *palette;
+        const MaterialPalette *palette;
         GtkCssProvider *provider;
         GdkDisplay *display;
         gchar *css;
@@ -162,7 +162,7 @@ rv_style_set_dark(gboolean dark)
 }
 
 void
-rv_style_init(void)
+style_init(void)
 {
         static gboolean initialized = FALSE;
 
@@ -170,5 +170,5 @@ rv_style_init(void)
                 return;
         initialized = TRUE;
 
-        rv_style_set_dark(FALSE);
+        style_set_dark(FALSE);
 }

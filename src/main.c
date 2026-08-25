@@ -8,7 +8,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define RV_ELEVATION_FD_ENV "RVKERNEL_ELEVATION_FD"
+#define ELEVATION_FD_ENV "RVKERNEL_ELEVATION_FD"
 
 static void
 add_env_args(GPtrArray *args)
@@ -37,11 +37,11 @@ report_elevation_ready(void)
         if (geteuid() != 0)
                 return;
 
-        fd_str = g_getenv(RV_ELEVATION_FD_ENV);
+        fd_str = g_getenv(ELEVATION_FD_ENV);
         if (fd_str == NULL)
                 return;
 
-        g_unsetenv(RV_ELEVATION_FD_ENV);
+        g_unsetenv(ELEVATION_FD_ENV);
 
         fd = atoi(fd_str);
         if (fd <= 0 || fcntl(fd, F_GETFD) == -1) {
@@ -75,7 +75,7 @@ try_elevate(const gchar *pkexec, int *exit_status)
         if (exe == NULL)
                 exe = g_strdup(program_invocation_name);
 
-        fd_arg = g_strdup_printf("%s=%d", RV_ELEVATION_FD_ENV, fds[1]);
+        fd_arg = g_strdup_printf("%s=%d", ELEVATION_FD_ENV, fds[1]);
 
         args = g_ptr_array_new_with_free_func(g_free);
         g_ptr_array_add(args, g_strdup(pkexec));
@@ -136,7 +136,7 @@ elevate_if_needed(void)
         if (pkexec == NULL) {
                 g_printerr("%s: root access required "
                            "(polkit's pkexec not found)\n",
-                           RV_APP_NAME);
+                           APP_NAME);
                 _exit(1);
         }
 
@@ -157,7 +157,7 @@ main(int argc, char **argv)
         elevate_if_needed();
         report_elevation_ready();
 
-        app = rv_application_new();
+        app = application_new();
         status = g_application_run(G_APPLICATION(app), argc, argv);
         g_object_unref(app);
 

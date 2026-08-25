@@ -1,5 +1,5 @@
-#ifndef RV_CORE_CPU_H
-#define RV_CORE_CPU_H
+#ifndef CORE_CPU_H
+#define CORE_CPU_H
 
 #include <glib.h>
 
@@ -18,22 +18,22 @@ typedef struct {
         gchar    *max_freq_khz;
         gint64   *freqs_khz;
         gsize     n_freqs;
-} RvCpuPolicy;
+} CpuPolicy;
 
-RvCpuPolicy **rv_cpu_policies       (gsize *count);
-void          rv_cpu_policy_free    (RvCpuPolicy *policy);
-void          rv_cpu_policies_free  (RvCpuPolicy **policies, gsize count);
+CpuPolicy **cpu_policies       (gsize *count);
+void          cpu_policy_free    (CpuPolicy *policy);
+void          cpu_policies_free  (CpuPolicy **policies, gsize count);
 
-gboolean      rv_cpu_set_governor   (RvCpuPolicy *policy,
+gboolean      cpu_set_governor   (CpuPolicy *policy,
                                      const gchar *governor,
                                      GError     **error);
-gboolean      rv_cpu_set_epp        (RvCpuPolicy *policy,
+gboolean      cpu_set_epp        (CpuPolicy *policy,
                                      const gchar *preference,
                                      GError     **error);
-gboolean      rv_cpu_set_min_freq   (RvCpuPolicy *policy,
+gboolean      cpu_set_min_freq   (CpuPolicy *policy,
                                      gint64       khz,
                                      GError     **error);
-gboolean      rv_cpu_set_max_freq   (RvCpuPolicy *policy,
+gboolean      cpu_set_max_freq   (CpuPolicy *policy,
                                      gint64       khz,
                                      GError     **error);
 

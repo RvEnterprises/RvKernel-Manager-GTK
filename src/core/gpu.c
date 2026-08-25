@@ -27,25 +27,25 @@ read_tokens_from_file(const gchar *path)
         gchar *text;
         gchar **tokens;
 
-        text = rv_read_trimmed(path);
-        tokens = text != NULL ? rv_tokenize_ws(text) : g_new0(gchar *, 1);
+        text = read_trimmed(path);
+        tokens = text != NULL ? tokenize_ws(text) : g_new0(gchar *, 1);
         g_free(text);
         return tokens;
 }
 
-RvDevfreq *
-rv_devfreq_new(const gchar *path, const gchar *name)
+Devfreq *
+devfreq_new(const gchar *path, const gchar *name)
 {
-        RvDevfreq *d = g_new0(RvDevfreq, 1);
+        Devfreq *d = g_new0(Devfreq, 1);
 
         d->devfreq_path = g_strdup(path);
         d->name = g_strdup(name);
-        rv_devfreq_refresh(d);
+        devfreq_refresh(d);
         return d;
 }
 
 void
-rv_devfreq_refresh(RvDevfreq *d)
+devfreq_refresh(Devfreq *d)
 {
         gchar **tokens;
         gchar *tmp;
@@ -61,19 +61,19 @@ rv_devfreq_refresh(RvDevfreq *d)
         d->governors = NULL;
 
         tmp = g_build_filename(d->devfreq_path, "governor", NULL);
-        d->governor = rv_read_first_line(tmp);
+        d->governor = read_first_line(tmp);
         g_free(tmp);
 
         tmp = g_build_filename(d->devfreq_path, "cur_freq", NULL);
-        d->cur_freq_hz = rv_read_first_line(tmp);
+        d->cur_freq_hz = read_first_line(tmp);
         g_free(tmp);
 
         tmp = g_build_filename(d->devfreq_path, "min_freq", NULL);
-        d->min_freq_hz = rv_read_first_line(tmp);
+        d->min_freq_hz = read_first_line(tmp);
         g_free(tmp);
 
         tmp = g_build_filename(d->devfreq_path, "max_freq", NULL);
-        d->max_freq_hz = rv_read_first_line(tmp);
+        d->max_freq_hz = read_first_line(tmp);
         g_free(tmp);
 
         tmp = g_build_filename(d->devfreq_path, "available_governors", NULL);
@@ -89,19 +89,19 @@ rv_devfreq_refresh(RvDevfreq *d)
         d->governors = tokens;
 }
 
-RvDevfreq **
-rv_devfreq_list(gsize *count)
+Devfreq **
+devfreq_list(gsize *count)
 {
         GPtrArray *result;
         gsize n_entries = 0;
         gchar **entries;
 
         result = g_ptr_array_new();
-        entries = rv_list_dir(DEVFREQ_BASE, &n_entries);
+        entries = list_dir(DEVFREQ_BASE, &n_entries);
         for (gsize i = 0; i < n_entries; i++) {
                 gchar *path = g_build_filename(DEVFREQ_BASE, entries[i], NULL);
                 g_ptr_array_add(result,
-                                rv_devfreq_new(path, entries[i]));
+                                devfreq_new(path, entries[i]));
                 g_free(path);
         }
         g_strfreev(entries);
@@ -109,11 +109,11 @@ rv_devfreq_list(gsize *count)
         if (count != NULL)
                 *count = result->len;
         g_ptr_array_add(result, NULL);
-        return (RvDevfreq **)g_ptr_array_free(result, FALSE);
+        return (Devfreq **)g_ptr_array_free(result, FALSE);
 }
 
 void
-rv_devfreq_free(RvDevfreq *d)
+devfreq_free(Devfreq *d)
 {
         if (d == NULL)
                 return;
@@ -128,41 +128,41 @@ rv_devfreq_free(RvDevfreq *d)
 }
 
 gboolean
-rv_devfreq_set_governor(RvDevfreq *d, const gchar *governor, GError **error)
+devfreq_set_governor(Devfreq *d, const gchar *governor, GError **error)
 {
         gchar *path = g_build_filename(d->devfreq_path, "governor", NULL);
-        gboolean ok = rv_write_string(path, governor, error);
+        gboolean ok = write_string(path, governor, error);
         g_free(path);
         return ok;
 }
 
 gboolean
-rv_devfreq_set_min_freq(RvDevfreq *d, gint64 hz, GError **error)
+devfreq_set_min_freq(Devfreq *d, gint64 hz, GError **error)
 {
         gchar *path = g_build_filename(d->devfreq_path, "min_freq", NULL);
-        gboolean ok = rv_write_int64(path, hz, error);
+        gboolean ok = write_int64(path, hz, error);
         g_free(path);
         return ok;
 }
 
 gboolean
-rv_devfreq_set_max_freq(RvDevfreq *d, gint64 hz, GError **error)
+devfreq_set_max_freq(Devfreq *d, gint64 hz, GError **error)
 {
         gchar *path = g_build_filename(d->devfreq_path, "max_freq", NULL);
-        gboolean ok = rv_write_int64(path, hz, error);
+        gboolean ok = write_int64(path, hz, error);
         g_free(path);
         return ok;
 }
 
 static void
-card_parse_uevent(RvGpuCard *card)
+card_parse_uevent(GpuCard *card)
 {
         gchar *uevent;
         gchar **lines;
         gsize n_lines = 0;
 
         uevent = g_build_filename(card->card_path, "device", "uevent", NULL);
-        lines = rv_split_lines(rv_read_trimmed(uevent), &n_lines);
+        lines = split_lines(read_trimmed(uevent), &n_lines);
         g_free(uevent);
 
         for (gsize i = 0; lines[i] != NULL; i++) {
@@ -193,7 +193,7 @@ card_parse_uevent(RvGpuCard *card)
 }
 
 static void
-card_read_extras(RvGpuCard *card)
+card_read_extras(GpuCard *card)
 {
         gchar *tmp;
 
@@ -204,15 +204,15 @@ card_read_extras(RvGpuCard *card)
 
         tmp = g_build_filename(card->card_path, "device",
                                "gpu_busy_percent", NULL);
-        if (rv_path_exists(tmp)) {
+        if (path_exists(tmp)) {
                 card->has_busy_percent = TRUE;
-                card->busy_percent = rv_read_first_line(tmp);
+                card->busy_percent = read_first_line(tmp);
         }
         g_free(tmp);
 
         tmp = g_build_filename(card->card_path, "device",
                                "gt_cur_freq_mhz", NULL);
-        card->cur_clock_note = rv_read_first_line(tmp);
+        card->cur_clock_note = read_first_line(tmp);
         if (card->cur_clock_note != NULL) {
                 gchar *mhz = g_strdup_printf("%s MHz",
                                              card->cur_clock_note);
@@ -226,9 +226,9 @@ card_read_extras(RvGpuCard *card)
         tmp = g_build_filename(card->card_path, "device", "pp_dpm_sclk",
                                NULL);
         {
-                gchar *levels = rv_read_trimmed(tmp);
+                gchar *levels = read_trimmed(tmp);
                 if (levels != NULL) {
-                        gchar **lines = rv_split_lines(levels, NULL);
+                        gchar **lines = split_lines(levels, NULL);
                         for (gsize i = 0; lines[i] != NULL; i++) {
                                 if (strchr(lines[i], '*') == NULL)
                                         continue;
@@ -255,10 +255,10 @@ card_read_extras(RvGpuCard *card)
         g_free(tmp);
 }
 
-RvGpuCard *
-rv_gpu_card_new(const gchar *card_path, const gchar *card_name)
+GpuCard *
+gpu_card_new(const gchar *card_path, const gchar *card_name)
 {
-        RvGpuCard *card = g_new0(RvGpuCard, 1);
+        GpuCard *card = g_new0(GpuCard, 1);
         gchar *link_path;
         gchar *df_path;
 
@@ -268,10 +268,10 @@ rv_gpu_card_new(const gchar *card_path, const gchar *card_name)
         link_path = g_build_filename(card_path, "device", "devfreq", NULL);
         df_path = realpath(link_path, NULL);
         if (df_path != NULL) {
-                card->devfreq = rv_devfreq_new(df_path, card_name);
+                card->devfreq = devfreq_new(df_path, card_name);
                 free(df_path);
-        } else if (rv_is_dir(link_path)) {
-                card->devfreq = rv_devfreq_new(link_path, card_name);
+        } else if (is_dir(link_path)) {
+                card->devfreq = devfreq_new(link_path, card_name);
         }
         g_free(link_path);
 
@@ -282,21 +282,21 @@ rv_gpu_card_new(const gchar *card_path, const gchar *card_name)
 }
 
 void
-rv_gpu_card_refresh(RvGpuCard *card)
+gpu_card_refresh(GpuCard *card)
 {
         if (card == NULL)
                 return;
         if (card->devfreq != NULL)
-                rv_devfreq_refresh(card->devfreq);
+                devfreq_refresh(card->devfreq);
         card_read_extras(card);
 }
 
 void
-rv_gpu_card_free(RvGpuCard *card)
+gpu_card_free(GpuCard *card)
 {
         if (card == NULL)
                 return;
-        rv_devfreq_free(card->devfreq);
+        devfreq_free(card->devfreq);
         g_free(card->card_path);
         g_free(card->card_name);
         g_free(card->driver);
@@ -308,34 +308,34 @@ rv_gpu_card_free(RvGpuCard *card)
 }
 
 void
-rv_gpu_cards_free(RvGpuCard **cards, gsize count)
+gpu_cards_free(GpuCard **cards, gsize count)
 {
         if (cards == NULL)
                 return;
         for (gsize i = 0; i < count; i++)
-                rv_gpu_card_free(cards[i]);
+                gpu_card_free(cards[i]);
         g_free(cards);
 }
 
-RvGpuCard **
-rv_gpu_cards(gsize *count)
+GpuCard **
+gpu_cards(gsize *count)
 {
         GPtrArray *result;
         gsize n_entries = 0;
         gchar **entries;
 
         result = g_ptr_array_new();
-        entries = rv_list_dir(DRM_BASE, &n_entries);
+        entries = list_dir(DRM_BASE, &n_entries);
         for (gsize i = 0; i < n_entries; i++) {
                 gchar *path;
-                RvGpuCard *card;
+                GpuCard *card;
 
                 if (!g_str_has_prefix(entries[i], "card"))
                         continue;
                 path = g_build_filename(DRM_BASE, entries[i], NULL);
-                card = rv_gpu_card_new(path, entries[i]);
+                card = gpu_card_new(path, entries[i]);
                 if (card->driver == NULL && card->devfreq == NULL) {
-                        rv_gpu_card_free(card);
+                        gpu_card_free(card);
                 } else {
                         g_ptr_array_add(result, card);
                 }
@@ -346,5 +346,5 @@ rv_gpu_cards(gsize *count)
         if (count != NULL)
                 *count = result->len;
         g_ptr_array_add(result, NULL);
-        return (RvGpuCard **)g_ptr_array_free(result, FALSE);
+        return (GpuCard **)g_ptr_array_free(result, FALSE);
 }

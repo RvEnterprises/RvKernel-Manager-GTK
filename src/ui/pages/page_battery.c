@@ -1,14 +1,14 @@
 #include "pages.h"
-#include "widgets.h"
-#include "window.h"
+#include "../components/widgets.h"
+#include "../window.h"
 
-#include "../core/battery.h"
-#include "../util/format.h"
-#include "../util/sysfs.h"
+#include "../../core/battery.h"
+#include "../../util/format.h"
+#include "../../util/sysfs.h"
 
 typedef struct {
         GtkWidget *window;
-        RvPowerSupply *ps;
+        PowerSupply *ps;
         GtkWidget *status_row;
         GtkWidget *capacity_row;
         GtkLevelBar *level_bar;
@@ -23,13 +23,13 @@ typedef struct {
 } BatteryUi;
 
 typedef struct {
-        RvPowerSupply *ps;
+        PowerSupply *ps;
         GtkWidget *row;
 } AcRow;
 
 typedef struct {
         GtkWidget      *window;
-        RvPowerSupply **supplies;
+        PowerSupply **supplies;
         gsize           n_supplies;
         GPtrArray      *uis;
         GPtrArray      *ac_rows;
@@ -40,9 +40,9 @@ static void battery_ctx_free(BatteryCtx *ctx);
 static GtkWidget *
 make_kv(GtkWidget *card, const gchar *key)
 {
-        GtkWidget *row = rv_kv_row(key);
+        GtkWidget *row = kv_row(key);
 
-        rv_card_add(card, row);
+        card_add(card, row);
         return row;
 }
 
@@ -67,10 +67,10 @@ on_limit_apply(GtkButton *button, gpointer user_data)
         (void)button;
         percent = (gint)gtk_range_get_value(ui->scale_range);
 
-        if (!rv_power_supply_set_charge_limit(ui->ps, percent, &error)) {
+        if (!power_supply_set_charge_limit(ui->ps, percent, &error)) {
                 gchar *msg = g_strdup_printf("Failed to set charge limit: %s",
-                                             rv_window_error_text(&error));
-                rv_window_show_toast(ui->window, msg);
+                                             window_error_text(&error));
+                window_show_toast(ui->window, msg);
                 g_free(msg);
                 g_clear_error(&error);
                 return;
@@ -81,7 +81,7 @@ on_limit_apply(GtkButton *button, gpointer user_data)
                         "Charge limit set to %d %% "
                         "(effective after recharge below the new limit)",
                         percent);
-                rv_window_show_toast(ui->window, msg);
+                window_show_toast(ui->window, msg);
                 g_free(msg);
         }
 }
@@ -92,7 +92,7 @@ build_charge_limit_row(BatteryUi *ui)
         GtkWidget *box, *label, *scale, *apply_btn;
 
         box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
-        gtk_widget_add_css_class(box, "rv-row");
+        gtk_widget_add_css_class(box, "row");
 
         label = gtk_label_new("Charge limit");
         gtk_label_set_xalign(GTK_LABEL(label), 0.0f);
@@ -123,11 +123,11 @@ build_charge_limit_row(BatteryUi *ui)
 }
 
 static GtkWidget *
-build_battery_card(RvPowerSupply *ps, BatteryUi *ui)
+build_battery_card(PowerSupply *ps, BatteryUi *ui)
 {
         GtkWidget *card;
 
-        card = rv_card_new(ps->name);
+        card = card_new(ps->name);
 
         ui->status_row = make_kv(card, "Status");
         ui->capacity_row = make_kv(card, "Charge");
@@ -138,11 +138,11 @@ build_battery_card(RvPowerSupply *ps, BatteryUi *ui)
         {
                 GtkWidget *wrap = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
 
-                gtk_widget_add_css_class(wrap, "rv-row");
+                gtk_widget_add_css_class(wrap, "row");
                 gtk_widget_add_css_class(GTK_WIDGET(ui->level_bar),
-                                         "rv-battery-bar");
+                                         "battery-bar");
                 gtk_box_append(GTK_BOX(wrap), GTK_WIDGET(ui->level_bar));
-                rv_card_add(card, wrap);
+                card_add(card, wrap);
         }
 
         ui->health_row = make_kv(card, "Health");
@@ -157,7 +157,7 @@ build_battery_card(RvPowerSupply *ps, BatteryUi *ui)
                 ui->energy_row = make_kv(card, "Capacity");
 
         if (ps->has_charge_limit)
-                rv_card_add(card, build_charge_limit_row(ui));
+                card_add(card, build_charge_limit_row(ui));
 
         return card;
 }
@@ -165,55 +165,55 @@ build_battery_card(RvPowerSupply *ps, BatteryUi *ui)
 static void
 refresh_battery_ui(BatteryUi *ui)
 {
-        RvPowerSupply *ps = ui->ps;
+        PowerSupply *ps = ui->ps;
 
-        rv_power_supply_refresh(ps);
+        power_supply_refresh(ps);
 
-        rv_kv_set(ui->status_row, "%s", ps->status);
+        kv_set(ui->status_row, "%s", ps->status);
 
         if (ps->capacity >= 0)
-                rv_kv_set(ui->capacity_row, "%d %%", ps->capacity);
+                kv_set(ui->capacity_row, "%d %%", ps->capacity);
         else
-                rv_kv_set(ui->capacity_row, "-");
+                kv_set(ui->capacity_row, "-");
 
         gtk_level_bar_set_value(
                 ui->level_bar,
                 CLAMP(ps->capacity < 0 ? 0 : ps->capacity, 0, 100) / 100.0);
 
         if (ps->has_health && ps->health >= 0)
-                rv_kv_set(ui->health_row, "%d%% (%.1f Wh / %.2f Wh design)",
+                kv_set(ui->health_row, "%d%% (%.1f Wh / %.2f Wh design)",
                           ps->health, ps->charge_full_wh,
                           ps->charge_design_wh);
         else
-                rv_kv_set(ui->health_row, "-");
+                kv_set(ui->health_row, "-");
 
         if (ps->has_voltage)
-                rv_kv_set(ui->voltage_row, "%.3f V", ps->voltage_v);
+                kv_set(ui->voltage_row, "%.3f V", ps->voltage_v);
         else
-                rv_kv_set(ui->voltage_row, "-");
+                kv_set(ui->voltage_row, "-");
 
         if (ps->has_temp)
-                rv_kv_set(ui->temp_row, "%.1f °C", ps->temp_c);
+                kv_set(ui->temp_row, "%.1f °C", ps->temp_c);
         else
-                rv_kv_set(ui->temp_row, "-");
+                kv_set(ui->temp_row, "-");
 
         if (ps->has_power)
-                rv_kv_set(ui->power_row, "%.2f W", ps->power_w);
+                kv_set(ui->power_row, "%.2f W", ps->power_w);
         else
-                rv_kv_set(ui->power_row, "-");
+                kv_set(ui->power_row, "-");
 
         if (ui->cycle_row != NULL)
-                rv_kv_set(ui->cycle_row, "%d cycles", ps->cycle_count);
+                kv_set(ui->cycle_row, "%d cycles", ps->cycle_count);
 
         if (ui->energy_row != NULL)
-                rv_kv_set(ui->energy_row, "%.2f / %.2f Wh",
+                kv_set(ui->energy_row, "%.2f / %.2f Wh",
                           ps->charge_full_wh, ps->charge_design_wh);
 }
 
 static void
 refresh(GtkWidget *page)
 {
-        BatteryCtx *ctx = g_object_get_data(G_OBJECT(page), "rv-ctx");
+        BatteryCtx *ctx = g_object_get_data(G_OBJECT(page), "ctx");
 
         if (ctx == NULL)
                 return;
@@ -224,14 +224,14 @@ refresh(GtkWidget *page)
         for (gsize i = 0; i < ctx->ac_rows->len; i++) {
                 AcRow *ar = g_ptr_array_index(ctx->ac_rows, i);
 
-                rv_power_supply_refresh(ar->ps);
-                rv_kv_set(ar->row, "%s",
+                power_supply_refresh(ar->ps);
+                kv_set(ar->row, "%s",
                           ar->ps->online ? "Connected" : "Disconnected");
         }
 }
 
 GtkWidget *
-rv_page_battery_new(GtkWidget *window)
+page_battery_new(GtkWidget *window)
 {
         GtkWidget *scrolled, *content, *title;
         GtkWidget *ac_card = NULL;
@@ -239,24 +239,24 @@ rv_page_battery_new(GtkWidget *window)
         gboolean any = FALSE;
 
         content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 14);
-        gtk_widget_add_css_class(content, "rv-page");
+        gtk_widget_add_css_class(content, "page");
 
         ctx = g_new0(BatteryCtx, 1);
         ctx->window = window;
         ctx->uis = g_ptr_array_new_with_free_func(g_free);
         ctx->ac_rows = g_ptr_array_new_with_free_func(g_free);
-        ctx->supplies = rv_power_supply_list(&ctx->n_supplies);
+        ctx->supplies = power_supply_list(&ctx->n_supplies);
 
         title = gtk_label_new("Battery");
         gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
-        gtk_widget_add_css_class(title, "rv-title");
+        gtk_widget_add_css_class(title, "title");
         gtk_box_append(GTK_BOX(content), title);
 
         for (gsize i = 0; i < ctx->n_supplies; i++) {
-                RvPowerSupply *ps = ctx->supplies[i];
+                PowerSupply *ps = ctx->supplies[i];
                 BatteryUi *ui;
 
-                if (ps->kind != RV_PS_BATTERY)
+                if (ps->kind != PS_BATTERY)
                         continue;
 
                 any = TRUE;
@@ -270,22 +270,22 @@ rv_page_battery_new(GtkWidget *window)
         }
 
         for (gsize i = 0; i < ctx->n_supplies; i++) {
-                RvPowerSupply *ps = ctx->supplies[i];
+                PowerSupply *ps = ctx->supplies[i];
                 AcRow *ar;
 
-                if (ps->kind != RV_PS_AC)
+                if (ps->kind != PS_AC)
                         continue;
 
                 any = TRUE;
                 if (ac_card == NULL)
-                        ac_card = rv_card_new("AC adapter");
+                        ac_card = card_new("AC adapter");
 
                 ar = g_new0(AcRow, 1);
                 ar->ps = ps;
-                ar->row = rv_kv_row(ps->name);
-                rv_kv_set(ar->row, "%s",
+                ar->row = kv_row(ps->name);
+                kv_set(ar->row, "%s",
                           ps->online ? "Connected" : "Disconnected");
-                rv_card_add(ac_card, ar->row);
+                card_add(ac_card, ar->row);
                 g_ptr_array_add(ctx->ac_rows, ar);
         }
 
@@ -299,10 +299,10 @@ rv_page_battery_new(GtkWidget *window)
                 gtk_box_append(GTK_BOX(content), label);
         }
 
-        scrolled = rv_page_wrap(content);
-        g_object_set_data_full(G_OBJECT(scrolled), "rv-ctx", ctx,
+        scrolled = page_wrap(content);
+        g_object_set_data_full(G_OBJECT(scrolled), "ctx", ctx,
                                (GDestroyNotify)battery_ctx_free);
-        rv_page_set_refresh(scrolled, refresh);
+        page_set_refresh(scrolled, refresh);
 
         return scrolled;
 }
@@ -313,6 +313,6 @@ battery_ctx_free(BatteryCtx *ctx)
         g_clear_pointer(&ctx->uis, g_ptr_array_unref);
         g_clear_pointer(&ctx->ac_rows, g_ptr_array_unref);
         if (ctx->supplies != NULL)
-                rv_power_supply_list_free(ctx->supplies, ctx->n_supplies);
+                power_supply_list_free(ctx->supplies, ctx->n_supplies);
         g_free(ctx);
 }

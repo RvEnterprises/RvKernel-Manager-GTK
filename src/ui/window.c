@@ -1,7 +1,7 @@
 #include "window.h"
-#include "pages.h"
+#include "pages/pages.h"
 #include "sidebar.h"
-#include "style.h"
+#include "theme/style.h"
 
 #include "../core/system_info.h"
 #include "../util/sysfs.h"
@@ -17,12 +17,12 @@ typedef struct {
 
         GtkStack *stack;
         guint timer_id;
-} RvWindowCtx;
+} WindowCtx;
 
 static void
 ctx_free(gpointer data)
 {
-        RvWindowCtx *ctx = data;
+        WindowCtx *ctx = data;
 
         if (ctx->timer_id != 0)
                 g_source_remove(ctx->timer_id);
@@ -32,15 +32,15 @@ ctx_free(gpointer data)
 }
 
 static void
-refresh_current(RvWindowCtx *ctx)
+refresh_current(WindowCtx *ctx)
 {
-        rv_stack_refresh_visible(ctx->stack);
+        stack_refresh_visible(ctx->stack);
 }
 
 static gboolean
 on_timer(gpointer user_data)
 {
-        RvWindowCtx *ctx = user_data;
+        WindowCtx *ctx = user_data;
 
         refresh_current(ctx);
         return G_SOURCE_CONTINUE;
@@ -246,28 +246,28 @@ on_dark_toggled(GtkToggleButton *button, gpointer user_data)
         g_object_set(settings,
                      "gtk-application-prefer-dark-theme", dark,
                      NULL);
-        rv_style_set_dark(dark);
+        style_set_dark(dark);
         (void)user_data;
 }
 
 static GtkWidget *
-build_headerbar(RvWindowCtx *ctx, GtkWidget *window)
+build_headerbar(WindowCtx *ctx, GtkWidget *window)
 {
         GtkWidget *header, *dark_btn;
         GtkWidget *name_label, *subtitle_label, *title_box;
-        RvSystemInfo *info;
+        SystemInfo *info;
         gchar *subtitle;
 
-        info = rv_system_info_get();
+        info = system_info_get();
         subtitle = g_strdup_printf("%s · %s", info->distro, info->kernel);
-        rv_system_info_free(info);
+        system_info_free(info);
 
         header = gtk_header_bar_new();
 
         name_label = gtk_label_new(NULL);
         gtk_label_set_markup(
                 GTK_LABEL(name_label),
-                g_markup_printf_escaped("<b><big>%s</big></b>", RV_APP_NAME));
+                g_markup_printf_escaped("<b><big>%s</big></b>", APP_NAME));
 
         subtitle_label = gtk_label_new(subtitle);
         gtk_widget_add_css_class(subtitle_label, "dim-label");
@@ -302,7 +302,7 @@ build_banner(void)
         GtkWidget *box, *icon, *label;
 
         box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-        gtk_widget_add_css_class(box, "rv-banner");
+        gtk_widget_add_css_class(box, "banner");
 
         icon = gtk_image_new_from_icon_name("dialog-warning-symbolic");
         gtk_box_append(GTK_BOX(box), icon);
@@ -318,22 +318,22 @@ build_banner(void)
 }
 
 GtkWidget *
-rv_window_new(GtkApplication *app)
+window_new(GtkApplication *app)
 {
         GtkWidget *window, *header, *root_box, *overlay, *split;
         GtkWidget *sidebar_scroll, *sidebar, *main_area, *stack;
         GtkWidget *revealer, *toast_box, *toast_label;
-        RvWindowCtx *ctx;
+        WindowCtx *ctx;
 
-        rv_style_init();
+        style_init();
 
         window = gtk_application_window_new(app);
-        gtk_window_set_title(GTK_WINDOW(window), RV_APP_NAME);
+        gtk_window_set_title(GTK_WINDOW(window), APP_NAME);
         gtk_window_set_default_size(GTK_WINDOW(window), 1080, 720);
-        gtk_window_set_icon_name(GTK_WINDOW(window), RV_APP_ID);
+        gtk_window_set_icon_name(GTK_WINDOW(window), APP_ID);
 
-        ctx = g_new0(RvWindowCtx, 1);
-        g_object_set_data_full(G_OBJECT(window), "rv-window-ctx", ctx,
+        ctx = g_new0(WindowCtx, 1);
+        g_object_set_data_full(G_OBJECT(window), "window-ctx", ctx,
                                ctx_free);
 
         header = build_headerbar(ctx, window);
@@ -345,17 +345,17 @@ rv_window_new(GtkApplication *app)
         root_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
         gtk_overlay_set_child(GTK_OVERLAY(overlay), root_box);
 
-        if (!rv_is_root())
+        if (!is_root())
                 gtk_box_append(GTK_BOX(root_box), build_banner());
 
         split = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
         gtk_widget_set_vexpand(split, TRUE);
         gtk_box_append(GTK_BOX(root_box), split);
 
-        sidebar = rv_sidebar_new();
-        gtk_widget_add_css_class(sidebar, "rv-sidebar");
+        sidebar = sidebar_new();
+        gtk_widget_add_css_class(sidebar, "sidebar");
         sidebar_scroll = gtk_scrolled_window_new();
-        gtk_widget_add_css_class(sidebar_scroll, "rv-sidebar-shell");
+        gtk_widget_add_css_class(sidebar_scroll, "sidebar-shell");
         gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(sidebar_scroll),
                                       sidebar);
         gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sidebar_scroll),
@@ -372,24 +372,24 @@ rv_window_new(GtkApplication *app)
         stack = gtk_stack_new();
         gtk_stack_set_transition_type(
                 GTK_STACK(stack), GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT);
-        rv_sidebar_set_stack(sidebar, GTK_STACK(stack));
+        sidebar_set_stack(sidebar, GTK_STACK(stack));
         ctx->stack = GTK_STACK(stack);
 
         gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(main_area), stack);
         gtk_widget_set_vexpand(main_area, TRUE);
         gtk_box_append(GTK_BOX(split), main_area);
 
-        add_page(GTK_STACK(stack), rv_page_dashboard_new(window),
+        add_page(GTK_STACK(stack), page_dashboard_new(window),
                  "dashboard", "Dashboard", "dashboard-symbolic");
-        add_page(GTK_STACK(stack), rv_page_cpu_new(window),
+        add_page(GTK_STACK(stack), page_cpu_new(window),
                  "cpu", "CPU", "cpu-symbolic");
-        add_page(GTK_STACK(stack), rv_page_gpu_new(window),
+        add_page(GTK_STACK(stack), page_gpu_new(window),
                  "gpu", "GPU", "gpu-symbolic");
-        add_page(GTK_STACK(stack), rv_page_battery_new(window),
+        add_page(GTK_STACK(stack), page_battery_new(window),
                  "battery", "Battery", "battery-symbolic");
-        add_page(GTK_STACK(stack), rv_page_memory_new(window),
+        add_page(GTK_STACK(stack), page_memory_new(window),
                  "memory", "Memory", "memory-symbolic");
-        add_page(GTK_STACK(stack), rv_page_about_new(window),
+        add_page(GTK_STACK(stack), page_about_new(window),
                  "about", "About", "info-symbolic");
 
         g_signal_connect(stack, "notify::visible-child",
@@ -425,7 +425,7 @@ rv_window_new(GtkApplication *app)
 static gboolean
 hide_toast(gpointer user_data)
 {
-        RvWindowCtx *ctx = user_data;
+        WindowCtx *ctx = user_data;
 
         gtk_revealer_set_reveal_child(GTK_REVEALER(ctx->toast_revealer),
                                       FALSE);
@@ -434,13 +434,13 @@ hide_toast(gpointer user_data)
 }
 
 void
-rv_window_show_toast(GtkWidget *window, const gchar *message)
+window_show_toast(GtkWidget *window, const gchar *message)
 {
-        RvWindowCtx *ctx;
+        WindowCtx *ctx;
 
         g_return_if_fail(GTK_IS_WIDGET(window));
 
-        ctx = g_object_get_data(G_OBJECT(window), "rv-window-ctx");
+        ctx = g_object_get_data(G_OBJECT(window), "window-ctx");
         if (ctx == NULL || ctx->toast_revealer == NULL)
                 return;
 

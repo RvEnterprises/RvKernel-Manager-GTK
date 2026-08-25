@@ -16,9 +16,9 @@ read_os_pretty_name(void)
         gchar *result = NULL;
         gsize i;
 
-        content = rv_read_trimmed("/etc/os-release");
+        content = read_trimmed("/etc/os-release");
         if (content == NULL)
-                content = rv_read_trimmed("/usr/lib/os-release");
+                content = read_trimmed("/usr/lib/os-release");
         if (content == NULL)
                 return g_strdup("Unknown");
 
@@ -53,7 +53,7 @@ read_cpu_model(void)
         gchar *result = NULL;
         gsize i, j;
 
-        content = rv_read_trimmed("/proc/cpuinfo");
+        content = read_trimmed("/proc/cpuinfo");
         if (content == NULL)
                 return g_strdup("Unknown");
 
@@ -79,12 +79,12 @@ read_cpu_model(void)
 }
 
 static void
-read_disk_swap(RvSystemInfo *info)
+read_disk_swap(SystemInfo *info)
 {
         gchar *content;
         gchar **lines;
 
-        content = rv_read_trimmed("/proc/swaps");
+        content = read_trimmed("/proc/swaps");
         if (content == NULL)
                 return;
 
@@ -103,7 +103,7 @@ read_disk_swap(RvSystemInfo *info)
                 }
                 g_free(base);
 
-                fields = rv_tokenize_ws(lines[i]);
+                fields = tokenize_ws(lines[i]);
                 if (fields[0] != NULL && fields[1] != NULL &&
                     fields[2] != NULL && fields[3] != NULL) {
                         info->disk_swap_total_kb +=
@@ -117,10 +117,10 @@ read_disk_swap(RvSystemInfo *info)
         g_free(content);
 }
 
-RvSystemInfo *
-rv_system_info_get(void)
+SystemInfo *
+system_info_get(void)
 {
-        RvSystemInfo *info = g_new0(RvSystemInfo, 1);
+        SystemInfo *info = g_new0(SystemInfo, 1);
         struct utsname uts;
         struct sysinfo si;
         gchar *meminfo;
@@ -140,7 +140,7 @@ rv_system_info_get(void)
         info->distro = read_os_pretty_name();
         info->cpu_model = read_cpu_model();
 
-        info->loadavg = rv_read_first_line("/proc/loadavg");
+        info->loadavg = read_first_line("/proc/loadavg");
         if (info->loadavg != NULL) {
                 gchar *space = strchr(info->loadavg, ' ');
                 if (space != NULL) {
@@ -169,7 +169,7 @@ rv_system_info_get(void)
                 info->swap_free_kb = (guint64)si.freeswap * si.mem_unit / 1024;
         }
 
-        meminfo = rv_read_trimmed("/proc/meminfo");
+        meminfo = read_trimmed("/proc/meminfo");
         if (meminfo != NULL) {
                 lines = g_strsplit(meminfo, "\n", -1);
                 for (gsize i = 0; lines[i] != NULL; i++) {
@@ -201,7 +201,7 @@ rv_system_info_get(void)
 }
 
 void
-rv_system_info_free(RvSystemInfo *info)
+system_info_free(SystemInfo *info)
 {
         if (info == NULL)
                 return;
@@ -215,13 +215,13 @@ rv_system_info_free(RvSystemInfo *info)
 }
 
 gsize
-rv_cpu_sample_count(void)
+cpu_sample_count(void)
 {
-        gchar *stat = rv_read_trimmed("/proc/stat");
+        gchar *stat = read_trimmed("/proc/stat");
         gsize count = 0;
 
         if (stat != NULL) {
-                gchar **lines = rv_split_lines(stat, NULL);
+                gchar **lines = split_lines(stat, NULL);
                 for (gsize i = 0; lines[i] != NULL; i++) {
                         if (g_str_has_prefix(lines[i], "cpu") &&
                             lines[i][3] >= '0' && lines[i][3] <= '9')
@@ -273,7 +273,7 @@ parse_stat_line(const gchar *line, guint64 *idle, guint64 *total)
 }
 
 void
-rv_cpu_usage_sample(RvCpuSample *prev, gdouble *per_core,
+cpu_usage_sample(CpuSample *prev, gdouble *per_core,
                     gsize n_cores, gdouble *overall)
 {
         gchar *stat;
@@ -289,11 +289,11 @@ rv_cpu_usage_sample(RvCpuSample *prev, gdouble *per_core,
                         per_core[i] = -1.0;
         }
 
-        stat = rv_read_trimmed("/proc/stat");
+        stat = read_trimmed("/proc/stat");
         if (stat == NULL)
                 return;
 
-        lines = rv_split_lines(stat, NULL);
+        lines = split_lines(stat, NULL);
         for (gsize i = 0; lines[i] != NULL; i++) {
                 guint64 idle = 0, total = 0;
 

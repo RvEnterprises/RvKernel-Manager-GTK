@@ -1,7 +1,7 @@
 #include "format.h"
 
 gchar **
-rv_tokenize_ws(const gchar *text)
+tokenize_ws(const gchar *text)
 {
         GPtrArray *tokens;
         const gchar *p;
@@ -34,7 +34,7 @@ rv_tokenize_ws(const gchar *text)
 }
 
 gchar **
-rv_split_lines(const gchar *text, gsize *count)
+split_lines(const gchar *text, gsize *count)
 {
         GPtrArray *out;
         gchar **lines;
@@ -63,7 +63,7 @@ rv_split_lines(const gchar *text, gsize *count)
 }
 
 gchar *
-rv_format_hz(gint64 hz)
+format_hz(gint64 hz)
 {
         if (hz >= 1000000000LL && hz % 1000000000LL == 0)
                 return g_strdup_printf("%.0f GHz", hz / 1000000000.0);
@@ -76,13 +76,13 @@ rv_format_hz(gint64 hz)
 }
 
 gchar *
-rv_format_khz(gint64 khz)
+format_khz(gint64 khz)
 {
-        return rv_format_hz(khz * 1000);
+        return format_hz(khz * 1000);
 }
 
 gchar *
-rv_format_bytes(guint64 bytes)
+format_bytes(guint64 bytes)
 {
         gdouble value = (gdouble)bytes;
         const gchar *units[] = { "B", "KB", "MB", "GB", "TB" };
@@ -104,7 +104,7 @@ rv_format_bytes(guint64 bytes)
 }
 
 gchar *
-rv_format_uptime(guint64 seconds)
+format_uptime(guint64 seconds)
 {
         guint64 days = seconds / 86400;
         guint64 hours = (seconds % 86400) / 3600;
@@ -124,7 +124,7 @@ rv_format_uptime(guint64 seconds)
 }
 
 gboolean
-rv_str_has_prefix_any(const gchar         *text,
+str_has_prefix_any(const gchar         *text,
                       const gchar *const  *prefixes,
                       gsize                n_prefixes)
 {
@@ -138,7 +138,7 @@ rv_str_has_prefix_any(const gchar         *text,
 }
 
 gint
-rv_cmp_int64(gconstpointer a, gconstpointer b)
+cmp_int64(gconstpointer a, gconstpointer b)
 {
         gint64 va = *(const gint64 *)a;
         gint64 vb = *(const gint64 *)b;

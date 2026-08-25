@@ -1,18 +1,18 @@
-#ifndef RV_CORE_BATTERY_H
-#define RV_CORE_BATTERY_H
+#ifndef CORE_BATTERY_H
+#define CORE_BATTERY_H
 
 #include <glib.h>
 
 G_BEGIN_DECLS
 
 typedef enum {
-        RV_PS_BATTERY,
-        RV_PS_AC,
-        RV_PS_OTHER
-} RvPowerSupplyKind;
+        PS_BATTERY,
+        PS_AC,
+        PS_OTHER
+} PowerSupplyKind;
 
 typedef struct {
-        RvPowerSupplyKind  kind;
+        PowerSupplyKind  kind;
         gchar             *path;
         gchar             *name;
         gchar             *status;
@@ -37,14 +37,14 @@ typedef struct {
         gchar             *charge_limit_path;
         gboolean           has_charge_limit;
         gint               charge_limit;
-} RvPowerSupply;
+} PowerSupply;
 
-RvPowerSupply **rv_power_supply_list (gsize *count);
-void            rv_power_supply_refresh (RvPowerSupply *ps);
-void            rv_power_supply_free (RvPowerSupply *ps);
-void            rv_power_supply_list_free (RvPowerSupply **list, gsize count);
+PowerSupply **power_supply_list (gsize *count);
+void            power_supply_refresh (PowerSupply *ps);
+void            power_supply_free (PowerSupply *ps);
+void            power_supply_list_free (PowerSupply **list, gsize count);
 
-gboolean        rv_power_supply_set_charge_limit (RvPowerSupply *ps,
+gboolean        power_supply_set_charge_limit (PowerSupply *ps,
                                                   gint           percent,
                                                   GError       **error);
 

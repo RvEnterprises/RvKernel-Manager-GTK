@@ -1,27 +1,27 @@
 #include "widgets.h"
 
-static const gchar *KEY_VALUE_LABEL = "rv-value-label";
-static const gchar *KEY_ROW_DROPDOWN = "rv-dropdown";
-static const gchar *KEY_ROW_IDS = "rv-ids";
-static const gchar *KEY_ROW_LIST = "rv-list";
-static const gchar *KEY_ROW_SPIN = "rv-spin";
+static const gchar *KEY_VALUE_LABEL = "value-label";
+static const gchar *KEY_ROW_DROPDOWN = "dropdown";
+static const gchar *KEY_ROW_IDS = "ids";
+static const gchar *KEY_ROW_LIST = "list";
+static const gchar *KEY_ROW_SPIN = "spin";
 
 GtkWidget *
-rv_card_new(const gchar *title)
+card_new(const gchar *title)
 {
         GtkWidget *card = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-        gtk_widget_add_css_class(card, "rv-card");
+        gtk_widget_add_css_class(card, "card");
 
         if (title != NULL) {
                 GtkWidget *label = gtk_label_new(title);
                 gtk_widget_set_halign(label, GTK_ALIGN_START);
-                gtk_widget_add_css_class(label, "rv-card-title");
+                gtk_widget_add_css_class(label, "card-title");
                 gtk_box_append(GTK_BOX(card), label);
 
                 gtk_box_append(
                         GTK_BOX(card),
                         gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
-                g_object_set_data(G_OBJECT(card), "rv-has-header",
+                g_object_set_data(G_OBJECT(card), "has-header",
                                   GINT_TO_POINTER(1));
         }
 
@@ -29,23 +29,23 @@ rv_card_new(const gchar *title)
 }
 
 void
-rv_card_add(GtkWidget *card, GtkWidget *child)
+card_add(GtkWidget *card, GtkWidget *child)
 {
-        if (g_object_get_data(G_OBJECT(card), "rv-rows-added") != NULL)
+        if (g_object_get_data(G_OBJECT(card), "rows-added") != NULL)
                 gtk_box_append(GTK_BOX(card),
                                gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
 
-        g_object_set_data(G_OBJECT(card), "rv-rows-added", GINT_TO_POINTER(1));
+        g_object_set_data(G_OBJECT(card), "rows-added", GINT_TO_POINTER(1));
         gtk_box_append(GTK_BOX(card), child);
 }
 
 GtkWidget *
-rv_kv_row(const gchar *key)
+kv_row(const gchar *key)
 {
         GtkWidget *row, *label, *value;
 
         row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
-        gtk_widget_add_css_class(row, "rv-row");
+        gtk_widget_add_css_class(row, "row");
 
         label = gtk_label_new(key);
         gtk_label_set_xalign(GTK_LABEL(label), 0.0f);
@@ -57,7 +57,7 @@ rv_kv_row(const gchar *key)
         gtk_label_set_ellipsize(GTK_LABEL(value), PANGO_ELLIPSIZE_END);
         gtk_label_set_selectable(GTK_LABEL(value), TRUE);
         gtk_label_set_xalign(GTK_LABEL(value), 1.0f);
-        gtk_widget_add_css_class(value, "rv-value");
+        gtk_widget_add_css_class(value, "value");
         gtk_box_append(GTK_BOX(row), value);
 
         g_object_set_data(G_OBJECT(row), KEY_VALUE_LABEL, value);
@@ -65,7 +65,7 @@ rv_kv_row(const gchar *key)
 }
 
 void
-rv_kv_set(GtkWidget *row, const gchar *fmt, ...)
+kv_set(GtkWidget *row, const gchar *fmt, ...)
 {
         GtkLabel *value;
         va_list args;
@@ -87,13 +87,13 @@ rv_kv_set(GtkWidget *row, const gchar *fmt, ...)
 }
 
 GtkWidget *
-rv_option_row_new(const gchar *title)
+option_row_new(const gchar *title)
 {
         GtkWidget *row, *label, *dropdown;
         GtkStringList *list;
 
         row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
-        gtk_widget_add_css_class(row, "rv-row");
+        gtk_widget_add_css_class(row, "row");
 
         label = gtk_label_new(title);
         gtk_label_set_xalign(GTK_LABEL(label), 0.0f);
@@ -115,7 +115,7 @@ rv_option_row_new(const gchar *title)
 }
 
 void
-rv_option_row_append(GtkWidget *row, const gchar *id, const gchar *label)
+option_row_append(GtkWidget *row, const gchar *id, const gchar *label)
 {
         GtkStringList *list = g_object_get_data(G_OBJECT(row), KEY_ROW_LIST);
         GPtrArray *ids = g_object_get_data(G_OBJECT(row), KEY_ROW_IDS);
@@ -128,7 +128,7 @@ rv_option_row_append(GtkWidget *row, const gchar *id, const gchar *label)
 }
 
 void
-rv_option_row_select_id(GtkWidget *row, const gchar *id)
+option_row_select_id(GtkWidget *row, const gchar *id)
 {
         GtkDropDown *dropdown =
                 g_object_get_data(G_OBJECT(row), KEY_ROW_DROPDOWN);
@@ -146,7 +146,7 @@ rv_option_row_select_id(GtkWidget *row, const gchar *id)
 }
 
 const gchar *
-rv_option_row_active_id(GtkWidget *row)
+option_row_active_id(GtkWidget *row)
 {
         GtkDropDown *dropdown =
                 g_object_get_data(G_OBJECT(row), KEY_ROW_DROPDOWN);
@@ -165,21 +165,21 @@ rv_option_row_active_id(GtkWidget *row)
 }
 
 GtkDropDown *
-rv_option_row_dropdown(GtkWidget *row)
+option_row_dropdown(GtkWidget *row)
 {
         return GTK_DROP_DOWN(g_object_get_data(G_OBJECT(row),
                                                KEY_ROW_DROPDOWN));
 }
 
 GtkWidget *
-rv_spin_row(const gchar *title, gdouble min, gdouble max, gdouble step,
+spin_row(const gchar *title, gdouble min, gdouble max, gdouble step,
             gdouble value)
 {
         GtkWidget *row, *label;
         GtkSpinButton *spin;
 
         row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
-        gtk_widget_add_css_class(row, "rv-row");
+        gtk_widget_add_css_class(row, "row");
 
         label = gtk_label_new(title);
         gtk_label_set_xalign(GTK_LABEL(label), 0.0f);
@@ -198,13 +198,13 @@ rv_spin_row(const gchar *title, gdouble min, gdouble max, gdouble step,
 }
 
 GtkSpinButton *
-rv_spin_row_spin(GtkWidget *row)
+spin_row_spin(GtkWidget *row)
 {
         return GTK_SPIN_BUTTON(g_object_get_data(G_OBJECT(row), KEY_ROW_SPIN));
 }
 
 GtkWidget *
-rv_page_wrap(GtkWidget *content)
+page_wrap(GtkWidget *content)
 {
         GtkWidget *scrolled = gtk_scrolled_window_new();
 

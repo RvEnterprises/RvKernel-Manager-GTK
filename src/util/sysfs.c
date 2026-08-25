@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 gchar *
-rv_read_trimmed(const gchar *path)
+read_trimmed(const gchar *path)
 {
         gchar *contents = NULL;
 
@@ -23,9 +23,9 @@ rv_read_trimmed(const gchar *path)
 }
 
 gchar *
-rv_read_first_line(const gchar *path)
+read_first_line(const gchar *path)
 {
-        gchar *text = rv_read_trimmed(path);
+        gchar *text = read_trimmed(path);
         gchar *end;
 
         if (text == NULL)
@@ -39,7 +39,7 @@ rv_read_first_line(const gchar *path)
 }
 
 gboolean
-rv_write_string(const gchar *path, const gchar *value, GError **error)
+write_string(const gchar *path, const gchar *value, GError **error)
 {
         int fd;
         gssize written;
@@ -68,22 +68,22 @@ rv_write_string(const gchar *path, const gchar *value, GError **error)
 }
 
 gboolean
-rv_write_int64(const gchar *path, gint64 value, GError **error)
+write_int64(const gchar *path, gint64 value, GError **error)
 {
         gchar buf[G_ASCII_DTOSTR_BUF_SIZE];
 
         g_snprintf(buf, sizeof(buf), "%" G_GINT64_FORMAT, value);
-        return rv_write_string(path, buf, error);
+        return write_string(path, buf, error);
 }
 
 gboolean
-rv_read_int64(const gchar *path, gint64 *out_value)
+read_int64(const gchar *path, gint64 *out_value)
 {
         gchar *text;
         gchar *end;
         gint64 value;
 
-        text = rv_read_trimmed(path);
+        text = read_trimmed(path);
         if (text == NULL || text[0] == '\0') {
                 g_free(text);
                 return FALSE;
@@ -103,11 +103,11 @@ rv_read_int64(const gchar *path, gint64 *out_value)
 }
 
 gboolean
-rv_read_double(const gchar *path, gdouble *out_value)
+read_double(const gchar *path, gdouble *out_value)
 {
         gint64 value;
 
-        if (!rv_read_int64(path, &value))
+        if (!read_int64(path, &value))
                 return FALSE;
         if (out_value != NULL)
                 *out_value = (gdouble)value;
@@ -115,13 +115,13 @@ rv_read_double(const gchar *path, gdouble *out_value)
 }
 
 gboolean
-rv_path_exists(const gchar *path)
+path_exists(const gchar *path)
 {
         return access(path, F_OK) == 0;
 }
 
 gboolean
-rv_is_dir(const gchar *path)
+is_dir(const gchar *path)
 {
         struct stat st;
 
@@ -129,7 +129,7 @@ rv_is_dir(const gchar *path)
 }
 
 gboolean
-rv_is_root(void)
+is_root(void)
 {
         return geteuid() == 0;
 }
@@ -141,7 +141,7 @@ cmp_names(gconstpointer a, gconstpointer b)
 }
 
 gchar **
-rv_list_dir(const gchar *path, gsize *count)
+list_dir(const gchar *path, gsize *count)
 {
         DIR *dir;
         struct dirent *entry;
@@ -174,7 +174,7 @@ rv_list_dir(const gchar *path, gsize *count)
 }
 
 gint64 *
-rv_parse_int_list(const gchar *text, gsize *count)
+parse_int_list(const gchar *text, gsize *count)
 {
         GArray *values;
         const gchar *p;
