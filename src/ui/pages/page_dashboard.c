@@ -332,7 +332,6 @@ build_battery_card(DashCtx *ctx)
                 g_ptr_array_add(ctx->battery_rows, br);
         }
 
-        g_free(supplies);
         return card;
 }
 
