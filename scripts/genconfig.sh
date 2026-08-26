@@ -14,7 +14,7 @@ out=${1:-"$root/.config"}
 errors=0
 
 awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
-    function fail(file, msg, line)
+    function fail(file, msg)
     {
         printf "%s: %s\n", file, msg > "/dev/stderr"
         errors++
@@ -25,10 +25,29 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
             next
         if ($1 == "mainmenu")
             next
+        if ($1 == "choice") {
+            in_choice++
+            members = ""
+            cdefault = ""
+            next
+        }
+        if ($1 == "endchoice") {
+            if (!in_choice) {
+                fail(FILENAME, "endchoice without choice")
+                next
+            }
+            n_choices++
+            choice_members[n_choices] = members
+            choice_default[n_choices] = cdefault
+            in_choice--
+            next
+        }
+        if ($1 == "prompt")
+            next
         if ($1 == "config") {
             name = $2
             if (name !~ /^[A-Za-z0-9_]+$/) {
-                fail(FILENAME, "invalid option name \"" name "\"", NR)
+                fail(FILENAME, "invalid option name \"" name "\"")
                 name = ""
                 next
             }
@@ -37,18 +56,23 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
                 order[++n] = name
             }
             value[name] = "n"
+            if (in_choice)
+                members = members (members == "" ? "" : " ") name
+            next
+        }
+        if (in_choice && $1 == "default") {
+            cdefault = $2
             next
         }
         if (name == "")
             next
-        if ($1 == "bool") {
+        if ($1 == "bool")
             next
-        }
         if ($1 == "default") {
             val = $2
             if (val != "y" && val != "n") {
                 fail(FILENAME,
-                     "unsupported default for " name ": " val, NR)
+                     "unsupported default for " name ": " val)
                 next
             }
             value[name] = val
@@ -65,7 +89,7 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
         if (line == "" || line ~ /^#/)
             next
         if (line !~ /^CONFIG_[A-Za-z0-9_]+=(y|n)$/) {
-            fail(FILENAME, "not a valid assignment: " line, NR)
+            fail(FILENAME, "not a valid assignment: " line)
             next
         }
         sym = line
@@ -74,7 +98,7 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
         val = line
         sub(/^.*=/, "", val)
         if (!(sym in declared)) {
-            fail(FILENAME, "undeclared option CONFIG_" sym, NR)
+            fail(FILENAME, "undeclared option CONFIG_" sym)
             next
         }
         value[sym] = val
@@ -82,6 +106,30 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
     }
 
     END {
+        for (ci = 1; ci <= n_choices; ci++) {
+            count = 0
+            picked = ""
+            m = split(choice_members[ci], member, " ")
+            for (j = 1; j <= m; j++)
+                if (value[member[j]] == "y") {
+                    count++
+                    picked = member[j]
+                }
+            if (count == 0) {
+                d = choice_default[ci]
+                if (d == "" || index(" " choice_members[ci] " ",
+                                     " " d " ") == 0) {
+                    fail(kcfg, "choice " ci " has no valid default")
+                    continue
+                }
+                value[d] = "y"
+                count = 1
+            }
+            if (count != 1)
+                fail(kcfg, "choice must select exactly one of: " \
+                           choice_members[ci])
+        }
+
         printf "#\n" \
                "# Automatically generated; edit configs/config or\n" \
                "# run \"make config\" instead of editing this file.\n" \

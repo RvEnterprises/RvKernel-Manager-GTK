@@ -68,6 +68,10 @@ sysfs/procfs access, page construction, refresh ticks and each applied
 setting. Set it to `n` (or remove it) for a silent binary; all logging is
 compiled out. Changing `.config` triggers a full rebuild.
 
+The compiler is chosen in the same file: set `CONFIG_CC_CLANG=y` (and turn
+`CONFIG_CC_GCC` off) to build with clang instead of gcc. An explicit
+`CC=` on the command line or in the environment overrides the choice.
+
 ## Project structure
 
 ```

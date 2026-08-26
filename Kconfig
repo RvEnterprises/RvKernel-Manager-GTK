@@ -6,6 +6,22 @@
 
 mainmenu "RvKernel Manager"
 
+choice
+	prompt "C compiler"
+	default CC_GCC
+
+config CC_GCC
+	bool "Build with GCC"
+	help
+	  Compile the whole tree with gcc.
+
+config CC_CLANG
+	bool "Build with Clang"
+	help
+	  Compile the whole tree with clang instead of gcc.
+
+endchoice
+
 config DEBUG
 	bool "Diagnostic logging"
 	default y

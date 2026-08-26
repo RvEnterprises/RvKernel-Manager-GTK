@@ -16,7 +16,13 @@ PKGS      := gtk4
 CONFIG_Y  = $(shell sed -n '/^CONFIG_[A-Za-z0-9_]*=y$$/p' $(CONFIG) \
               2>/dev/null)
 
-CC        ?= gcc
+# Compiler comes from the CC_GCC / CC_CLANG choice in .config. The
+# expression is deferred, so it evaluates only once .config exists;
+# an explicit CC= on the command line or in the environment wins.
+CC_DEFAULT = $(if $(findstring CONFIG_CC_CLANG=y,$(CONFIG_Y)),clang,gcc)
+ifeq ($(origin CC),default)
+CC         = $(CC_DEFAULT)
+endif
 CCACHE    ?= ccache
 CFLAGS    ?= -O2
 CFLAGS    += -std=c11 -D_GNU_SOURCE -Wall -Wextra -Wno-unused-parameter \

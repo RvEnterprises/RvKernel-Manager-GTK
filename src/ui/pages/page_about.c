@@ -5,6 +5,19 @@
 #include "../../core/system_info.h"
 #include "../../util/sysfs.h"
 
+#define STRINGIFY_(x) #x
+#define STRINGIFY(x) STRINGIFY_(x)
+
+#ifdef __clang__
+#define BUILD_COMPILER ("clang " STRINGIFY(__clang_major__) "." \
+                        STRINGIFY(__clang_minor__) "." \
+                        STRINGIFY(__clang_patchlevel__))
+#else
+#define BUILD_COMPILER ("gcc " STRINGIFY(__GNUC__) "." \
+                        STRINGIFY(__GNUC_MINOR__) "." \
+                        STRINGIFY(__GNUC_PATCHLEVEL__))
+#endif
+
 typedef struct {
         GtkWidget *root_row;
         SystemInfo *info;
@@ -50,6 +63,10 @@ page_about_new(GtkWidget *window)
 
         row = kv_row("Version");
         kv_set(row, "%s", VERSION);
+        card_add(card, row);
+
+        row = kv_row("Compiler");
+        kv_set(row, "%s", BUILD_COMPILER);
         card_add(card, row);
 
         row = kv_row("Developer");

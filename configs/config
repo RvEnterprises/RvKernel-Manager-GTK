@@ -5,4 +5,6 @@
 # and writes the result to .config.
 #
 
+CONFIG_CC_GCC=y
+CONFIG_CC_CLANG=n
 CONFIG_DEBUG=n
