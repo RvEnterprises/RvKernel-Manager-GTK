@@ -4,6 +4,7 @@
 
 #include "../../core/cpu.h"
 #include "../../util/format.h"
+#include "../../util/log.h"
 #include "../../util/sysfs.h"
 
 typedef struct {
@@ -32,6 +33,7 @@ show_write_error(GtkWidget *window, GError **error)
 {
         gchar *msg = g_strdup_printf("Failed to apply setting: %s",
                                      window_error_text(error));
+        log_error("cpu page: apply failed: %s", window_error_text(error));
         window_show_toast(window, msg);
         g_free(msg);
 }
@@ -268,6 +270,7 @@ page_cpu_new(GtkWidget *window)
         ctx = g_new0(CpuCtx, 1);
         ctx->uis = g_ptr_array_new_with_free_func(policy_ui_free);
         ctx->policies = cpu_policies(&ctx->n_policies);
+        log_debug("CPU page: %u policies", (guint)ctx->n_policies);
 
         title = gtk_label_new("CPU");
         gtk_label_set_xalign(GTK_LABEL(title), 0.0f);

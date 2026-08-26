@@ -1,6 +1,7 @@
 #include "memory.h"
 
 #include "../util/format.h"
+#include "../util/log.h"
 #include "../util/sysfs.h"
 
 #include <stdlib.h>
@@ -141,6 +142,7 @@ zram_list(gsize *count)
 
         if (count != NULL)
                 *count = result->len;
+        log_debug("zram: %u devices", (guint)result->len);
         g_ptr_array_add(result, NULL);
         return (Zram **)g_ptr_array_free(result, FALSE);
 }
@@ -173,6 +175,11 @@ zram_set_algo(Zram *z, const gchar *algo, GError **error)
 {
         gchar *tmp = g_build_filename(z->path, "comp_algorithm", NULL);
         gboolean ok = write_string(tmp, algo, error);
+
+        if (ok)
+                log_info("%s: algorithm -> %s", z->path, algo);
+        else
+                log_warn("%s: algorithm -> %s not applied", z->path, algo);
         g_free(tmp);
         return ok;
 }
@@ -195,6 +202,11 @@ vm_tunable_set(const VmTunable *t, gint value, GError **error)
 {
         gchar *path = g_build_filename(VM_SYSCTL_BASE, t->name, NULL);
         gboolean ok = write_int64(path, value, error);
+
+        if (ok)
+                log_info("vm.%s -> %d", t->name, value);
+        else
+                log_warn("vm.%s -> %d not applied", t->name, value);
         g_free(path);
         return ok;
 }
@@ -234,5 +246,11 @@ tcp_cc_current(void)
 gboolean
 tcp_cc_set(const gchar *cc, GError **error)
 {
-        return write_string(TCP_CC_PATH, cc, error);
+        gboolean ok = write_string(TCP_CC_PATH, cc, error);
+
+        if (ok)
+                log_info("tcp congestion control -> %s", cc);
+        else
+                log_warn("tcp congestion control -> %s not applied", cc);
+        return ok;
 }

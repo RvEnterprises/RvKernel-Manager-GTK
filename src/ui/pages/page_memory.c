@@ -4,6 +4,7 @@
 
 #include "../../core/memory.h"
 #include "../../util/format.h"
+#include "../../util/log.h"
 #include "../../util/sysfs.h"
 
 typedef struct {
@@ -41,6 +42,8 @@ show_write_error(GtkWidget *window, GError **error)
 
         msg = g_strdup_printf("Failed to apply setting: %s",
                               window_error_text(error));
+        log_error("memory page: apply failed: %s",
+                  window_error_text(error));
         window_show_toast(window, msg);
         g_free(msg);
 }
@@ -83,6 +86,7 @@ on_zram_algo_selected(GtkDropDown *dropdown, GParamSpec *pspec,
                 gchar *msg = g_strdup_printf(
                         "zram algorithm set to %s "
                         "(takes effect on next device reset)", id);
+                log_info("memory page: zram algo -> %s", id);
                 window_show_toast(ui->window, msg);
                 g_free(msg);
         }
@@ -266,6 +270,7 @@ page_memory_new(GtkWidget *window)
         ctx = g_new0(MemCtx, 1);
         ctx->zram_uis = g_ptr_array_new_with_free_func(g_free);
         ctx->zrams = zram_list(&ctx->n_zrams);
+        log_debug("Memory page: %u zram devices", (guint)ctx->n_zrams);
 
         title = gtk_label_new("Memory");
         gtk_label_set_xalign(GTK_LABEL(title), 0.0f);

@@ -4,6 +4,7 @@
 
 #include "../../core/battery.h"
 #include "../../util/format.h"
+#include "../../util/log.h"
 #include "../../util/sysfs.h"
 
 typedef struct {
@@ -70,6 +71,8 @@ on_limit_apply(GtkButton *button, gpointer user_data)
         if (!power_supply_set_charge_limit(ui->ps, percent, &error)) {
                 gchar *msg = g_strdup_printf("Failed to set charge limit: %s",
                                              window_error_text(&error));
+                log_error("battery page: limit -> %d%% failed: %s",
+                          percent, window_error_text(&error));
                 window_show_toast(ui->window, msg);
                 g_free(msg);
                 g_clear_error(&error);
@@ -81,6 +84,7 @@ on_limit_apply(GtkButton *button, gpointer user_data)
                         "Charge limit set to %d %% "
                         "(effective after recharge below the new limit)",
                         percent);
+                log_info("battery page: charge limit -> %d%%", percent);
                 window_show_toast(ui->window, msg);
                 g_free(msg);
         }
@@ -246,6 +250,7 @@ page_battery_new(GtkWidget *window)
         ctx->uis = g_ptr_array_new_with_free_func(g_free);
         ctx->ac_rows = g_ptr_array_new_with_free_func(g_free);
         ctx->supplies = power_supply_list(&ctx->n_supplies);
+        log_debug("Battery page: %u supplies", (guint)ctx->n_supplies);
 
         title = gtk_label_new("Battery");
         gtk_label_set_xalign(GTK_LABEL(title), 0.0f);

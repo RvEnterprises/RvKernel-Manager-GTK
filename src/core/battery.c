@@ -1,5 +1,6 @@
 #include "battery.h"
 
+#include "../util/log.h"
 #include "../util/sysfs.h"
 
 #include <gio/gio.h>
@@ -176,6 +177,7 @@ power_supply_list(gsize *count)
 
         if (count != NULL)
                 *count = result->len;
+        log_debug("power_supply: %u supplies", (guint)result->len);
         g_ptr_array_add(result, NULL);
         return (PowerSupply **)g_ptr_array_free(result, FALSE);
 }
@@ -206,11 +208,21 @@ gboolean
 power_supply_set_charge_limit(PowerSupply *ps, gint percent,
                                  GError **error)
 {
+        gboolean ok;
+
         if (ps->charge_limit_path == NULL) {
+                log_warn("%s: no charge limit control", ps->path);
                 g_set_error(error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
                             "Charge limit control not supported");
                 return FALSE;
         }
 
-        return write_int64(ps->charge_limit_path, percent, error);
+        ok = write_int64(ps->charge_limit_path, percent, error);
+        if (ok)
+                log_info("%s: charge limit -> %d%%",
+                         ps->charge_limit_path, percent);
+        else
+                log_warn("%s: charge limit -> %d%% not applied",
+                         ps->charge_limit_path, percent);
+        return ok;
 }

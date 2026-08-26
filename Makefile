@@ -3,17 +3,25 @@ BIN_DIR   := bin
 BUILD_DIR := $(BIN_DIR)/build
 DATA_DIR  := data
 
+CONFIG     := .config
+KCONFIG    := Kconfig
+DEF_CONFIG := configs/config
+
 PREFIX    ?= /usr/local
 BINDIR    := $(DESTDIR)$(PREFIX)/bin
 DATADIR   := $(DESTDIR)$(PREFIX)/share
 
 PKGS      := gtk4
 
+CONFIG_Y  = $(shell sed -n '/^CONFIG_[A-Za-z0-9_]*=y$$/p' $(CONFIG) \
+              2>/dev/null)
+
 CC        ?= gcc
 CCACHE    ?= ccache
 CFLAGS    ?= -O2
 CFLAGS    += -std=c11 -D_GNU_SOURCE -Wall -Wextra -Wno-unused-parameter \
              $(shell pkg-config --cflags $(PKGS))
+CFLAGS    += $(patsubst %,-D%,$(CONFIG_Y))
 LDLIBS    := $(shell pkg-config --libs $(PKGS)) -lm
 
 SRCS      := $(shell find src -name '*.c' | sort)
@@ -23,21 +31,27 @@ ICONS     := $(shell find data/icons -name '*.svg')
 RES_XML   := data/icons/icons.gresource.xml
 RES_OBJ   := $(BUILD_DIR)/icons_resources.o
 
-.PHONY: all run clean install uninstall
+.PHONY: all config run clean mrproper install uninstall
 
 all: $(BIN_DIR)/$(APP_NAME)
+
+config:
+	sh scripts/genconfig.sh
+
+$(CONFIG): $(KCONFIG) $(DEF_CONFIG) scripts/genconfig.sh
+	sh scripts/genconfig.sh
 
 $(BIN_DIR)/$(APP_NAME): $(OBJS) $(RES_OBJ)
 	@mkdir -p $(BIN_DIR)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-$(RES_OBJ): $(RES_XML) $(ICONS)
+$(RES_OBJ): $(RES_XML) $(ICONS) $(CONFIG)
 	@mkdir -p $(dir $@)
 	glib-compile-resources --sourcedir=data/icons \
 		--target=$@.c --generate-source $(RES_XML)
 	$(CCACHE) $(CC) $(CFLAGS) -c $@.c -o $@
 
-$(BUILD_DIR)/%.o: src/%.c
+$(BUILD_DIR)/%.o: src/%.c $(CONFIG)
 	@mkdir -p $(dir $@)
 	$(CCACHE) $(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
@@ -46,6 +60,9 @@ run: all
 
 clean:
 	rm -rf $(BIN_DIR)
+
+mrproper: clean
+	rm -f $(CONFIG)
 
 install: all
 	install -Dm755 $(BIN_DIR)/$(APP_NAME) $(BINDIR)/$(APP_NAME)

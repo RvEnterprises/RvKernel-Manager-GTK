@@ -45,6 +45,29 @@ Install system-wide:
 sudo make install PREFIX=/usr/local
 ```
 
+## Configuration
+
+Build-time options live in `Kconfig` with their defaults; `configs/config`
+holds the chosen values. `make config` regenerates `.config` by merging the
+two, and a missing `.config` is generated automatically at build time.
+
+```sh
+make config      # regenerate .config from configs/config + Kconfig defaults
+make mrproper    # clean build artifacts and .config
+```
+
+Enable diagnostic logging in `.config`:
+
+```
+CONFIG_DEBUG=y
+```
+
+With `CONFIG_DEBUG=y` every compile gets `-DCONFIG_DEBUG` and the app emits
+timestamped messages on stderr — startup and privilege handling,
+sysfs/procfs access, page construction, refresh ticks and each applied
+setting. Set it to `n` (or remove it) for a silent binary; all logging is
+compiled out. Changing `.config` triggers a full rebuild.
+
 ## Project structure
 
 ```
@@ -75,6 +98,7 @@ src/
 │   └── memory.[ch]      vm sysctls, zram, tcp congestion control
 └── util/
     ├── sysfs.[ch]       sysfs/procfs read/write helpers
+    ├── log.[ch]         diagnostic logging (CONFIG_DEBUG)
     └── format.[ch]      string tokenizing + human formatting
 ```
 

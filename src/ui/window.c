@@ -4,6 +4,7 @@
 #include "theme/style.h"
 
 #include "../core/system_info.h"
+#include "../util/log.h"
 #include "../util/sysfs.h"
 
 #include <pwd.h>
@@ -70,8 +71,9 @@ static void
 on_visible_child_changed(GtkStack *stack, GParamSpec *pspec,
                          gpointer user_data)
 {
-        (void)stack;
         (void)pspec;
+        log_debug("visible page: %s",
+                  gtk_stack_get_visible_child_name(stack));
         refresh_current(user_data);
 }
 
@@ -87,6 +89,7 @@ add_page(GtkStack *stack, GtkWidget *page, const gchar *name,
                      "title", title,
                      "icon-name", icon,
                      NULL);
+        log_debug("page '%s' (%s) registered", name, title);
 }
 
 static gboolean
@@ -131,8 +134,10 @@ invoking_state_dir(void)
 
         runtime_dir = g_getenv("XDG_RUNTIME_DIR");
         if (runtime_dir == NULL ||
-            !g_str_has_prefix(runtime_dir, "/run/user/"))
+            !g_str_has_prefix(runtime_dir, "/run/user/")) {
+                log_debug("no invoking-user runtime dir, skipping DMS probe");
                 return NULL;
+        }
 
         uid = (uid_t)g_ascii_strtoull(runtime_dir + strlen("/run/user/"),
                                       NULL, 10);
@@ -194,18 +199,22 @@ dms_read_dark(gboolean *dark)
         g_free(state_dir);
 
         if (!g_file_get_contents(path, &contents, NULL, NULL)) {
+                log_debug("%s: not readable", path);
                 g_free(path);
                 return FALSE;
         }
         g_free(path);
 
         if (!json_bool_value(contents, "\"isLightMode\"", &light)) {
+                log_debug("DMS session.json has no isLightMode key");
                 g_free(contents);
                 return FALSE;
         }
         g_free(contents);
 
         *dark = !light;
+        log_debug("DMS light mode %s, using dark theme: %d",
+                  light ? "on" : "off", *dark);
         return TRUE;
 }
 
@@ -245,6 +254,7 @@ portal_scheme_done(GObject *source, GAsyncResult *result,
 
         reply = g_dbus_connection_call_finish(bus, result, &error);
         if (reply == NULL) {
+                log_debug("portal color-scheme query failed");
                 g_error_free(error);
                 g_object_unref(bus);
                 scheme_watch_free(watch);
@@ -256,6 +266,7 @@ portal_scheme_done(GObject *source, GAsyncResult *result,
         g_variant_unref(value);
         g_variant_unref(reply);
         g_object_unref(bus);
+        log_debug("portal color scheme %u (1 = prefer dark)", scheme);
 
         /* 1 = prefer dark; 0 = no preference and 2 = prefer light. */
         if (watch->button != NULL &&
@@ -323,6 +334,7 @@ on_dark_toggled(GtkToggleButton *button, gpointer user_data)
                      "gtk-application-prefer-dark-theme", dark,
                      NULL);
         style_set_dark(dark);
+        log_debug("dark style toggled: %d", dark);
         (void)user_data;
 }
 
@@ -496,6 +508,7 @@ window_new(GtkApplication *app)
         refresh_current(ctx);
         ctx->timer_id = g_timeout_add_seconds(2, on_timer, ctx);
 
+        log_debug("main window built");
         return window;
 }
 
@@ -529,6 +542,7 @@ window_show_toast(GtkWidget *window, const gchar *message)
         gtk_label_set_text(GTK_LABEL(ctx->toast_label), message);
         gtk_revealer_set_reveal_child(GTK_REVEALER(ctx->toast_revealer),
                                       TRUE);
+        log_info("toast: %s", message);
         ctx->toast_timeout_id =
                 g_timeout_add_seconds(4, hide_toast, ctx);
 }

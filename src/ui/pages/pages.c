@@ -1,5 +1,7 @@
 #include "pages.h"
 
+#include "../../util/log.h"
+
 void
 page_set_refresh(GtkWidget *page, PageRefreshFunc fn)
 {
@@ -24,6 +26,8 @@ stack_refresh_visible(GtkStack *stack)
 {
         if (stack == NULL)
                 return;
+        log_debug("refresh page '%s'",
+                  gtk_stack_get_visible_child_name(stack));
         page_refresh(gtk_stack_get_visible_child(stack));
 }
 

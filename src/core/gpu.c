@@ -1,6 +1,7 @@
 #include "gpu.h"
 
 #include "../util/format.h"
+#include "../util/log.h"
 #include "../util/sysfs.h"
 
 #include <stdlib.h>
@@ -122,6 +123,12 @@ devfreq_set_governor(Devfreq *d, const gchar *governor, GError **error)
 {
         gchar *path = g_build_filename(d->devfreq_path, "governor", NULL);
         gboolean ok = write_string(path, governor, error);
+
+        if (ok)
+                log_info("%s: governor -> %s", d->devfreq_path, governor);
+        else
+                log_warn("%s: governor -> %s not applied",
+                         d->devfreq_path, governor);
         g_free(path);
         return ok;
 }
@@ -131,6 +138,12 @@ devfreq_set_min_freq(Devfreq *d, gint64 hz, GError **error)
 {
         gchar *path = g_build_filename(d->devfreq_path, "min_freq", NULL);
         gboolean ok = write_int64(path, hz, error);
+
+        if (ok)
+                log_info("%s: min freq -> %" G_GINT64_FORMAT " Hz",
+                         d->devfreq_path, hz);
+        else
+                log_warn("%s: min freq not applied", d->devfreq_path);
         g_free(path);
         return ok;
 }
@@ -140,6 +153,12 @@ devfreq_set_max_freq(Devfreq *d, gint64 hz, GError **error)
 {
         gchar *path = g_build_filename(d->devfreq_path, "max_freq", NULL);
         gboolean ok = write_int64(path, hz, error);
+
+        if (ok)
+                log_info("%s: max freq -> %" G_GINT64_FORMAT " Hz",
+                         d->devfreq_path, hz);
+        else
+                log_warn("%s: max freq not applied", d->devfreq_path);
         g_free(path);
         return ok;
 }
@@ -322,6 +341,7 @@ gpu_cards(gsize *count)
 
         if (count != NULL)
                 *count = result->len;
+        log_debug("drm: %u renderable cards", (guint)result->len);
         g_ptr_array_add(result, NULL);
         return (GpuCard **)g_ptr_array_free(result, FALSE);
 }

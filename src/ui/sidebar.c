@@ -1,5 +1,7 @@
 #include "sidebar.h"
 
+#include "../util/log.h"
+
 typedef struct {
         GtkStack *stack;
         GtkListBox *list;
@@ -228,7 +230,8 @@ sidebar_set_stack(GtkWidget *widget, GtkStack *stack)
                                  G_CALLBACK(items_changed_cb), self);
         self->visible_child_id =
                 g_signal_connect(stack, "notify::visible-child",
-                                 G_CALLBACK(visible_child_cb), self);
+                                  G_CALLBACK(visible_child_cb), self);
 
+        log_debug("sidebar bound to stack");
         rebuild_rows(self);
 }

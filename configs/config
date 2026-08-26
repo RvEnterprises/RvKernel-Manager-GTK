@@ -1,0 +1,8 @@
+#
+# Default option values.
+#
+# "make config" merges these over the declared defaults in Kconfig
+# and writes the result to .config.
+#
+
+CONFIG_DEBUG=n

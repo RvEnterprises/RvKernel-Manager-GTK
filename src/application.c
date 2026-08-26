@@ -1,6 +1,7 @@
 #include "application.h"
 #include "ui/window.h"
 #include "ui/theme/style.h"
+#include "util/log.h"
 
 static GtkWidget *
 find_window(GtkApplication *app)
@@ -26,8 +27,12 @@ on_activate(GtkApplication *app, gpointer user_data)
                 "/com/rve/RvKernelManager/icons/hicolor");
 
         window = find_window(app);
-        if (window == NULL)
+        if (window == NULL) {
+                log_debug("no window yet, creating one");
                 window = window_new(app);
+        } else {
+                log_debug("presenting existing window");
+        }
 
         gtk_window_present(GTK_WINDOW(window));
 }
@@ -38,6 +43,7 @@ application_new(void)
         GtkApplication *app;
 
         app = gtk_application_new(APP_ID, G_APPLICATION_DEFAULT_FLAGS);
+        log_debug("application %s created", APP_ID);
         g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
 
         return app;

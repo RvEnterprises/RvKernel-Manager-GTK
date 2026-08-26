@@ -1,6 +1,7 @@
 #include "cpu.h"
 
 #include "../util/format.h"
+#include "../util/log.h"
 #include "../util/sysfs.h"
 
 #include <stdlib.h>
@@ -189,6 +190,8 @@ cpu_policies(gsize *count)
 
         if (count != NULL)
                 *count = result->len;
+        log_debug("cpufreq: %u policy devices",
+                  (guint)result->len);
         g_ptr_array_add(result, NULL);
         return (CpuPolicy **)g_ptr_array_free(result, FALSE);
 }
@@ -226,6 +229,12 @@ cpu_set_governor(CpuPolicy *policy, const gchar *governor, GError **error)
 {
         gchar *path = g_build_filename(policy->path, "scaling_governor", NULL);
         gboolean ok = write_string(path, governor, error);
+
+        if (ok)
+                log_info("%s: governor -> %s", policy->path, governor);
+        else
+                log_warn("%s: governor -> %s not applied",
+                         policy->path, governor);
         g_free(path);
         return ok;
 }
@@ -236,6 +245,12 @@ cpu_set_epp(CpuPolicy *policy, const gchar *preference, GError **error)
         gchar *path = g_build_filename(policy->path,
                                        "energy_performance_preference", NULL);
         gboolean ok = write_string(path, preference, error);
+
+        if (ok)
+                log_info("%s: EPP -> %s", policy->path, preference);
+        else
+                log_warn("%s: EPP -> %s not applied",
+                         policy->path, preference);
         g_free(path);
         return ok;
 }
@@ -245,6 +260,12 @@ cpu_set_min_freq(CpuPolicy *policy, gint64 khz, GError **error)
 {
         gchar *path = g_build_filename(policy->path, "scaling_min_freq", NULL);
         gboolean ok = write_int64(path, khz, error);
+
+        if (ok)
+                log_info("%s: min freq -> %" G_GINT64_FORMAT " kHz",
+                         policy->path, khz);
+        else
+                log_warn("%s: min freq not applied", policy->path);
         g_free(path);
         return ok;
 }
@@ -254,6 +275,12 @@ cpu_set_max_freq(CpuPolicy *policy, gint64 khz, GError **error)
 {
         gchar *path = g_build_filename(policy->path, "scaling_max_freq", NULL);
         gboolean ok = write_int64(path, khz, error);
+
+        if (ok)
+                log_info("%s: max freq -> %" G_GINT64_FORMAT " kHz",
+                         policy->path, khz);
+        else
+                log_warn("%s: max freq not applied", policy->path);
         g_free(path);
         return ok;
 }

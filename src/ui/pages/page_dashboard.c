@@ -6,6 +6,7 @@
 #include "../../core/battery.h"
 #include "../../core/memory.h"
 #include "../../util/format.h"
+#include "../../util/log.h"
 #include "../../util/sysfs.h"
 
 typedef struct {
@@ -349,6 +350,8 @@ page_dashboard_new(GtkWidget *window)
         ctx->n_cores = cpu_sample_count();
         ctx->samples = g_new0(CpuSample, ctx->n_cores + 1);
         ctx->zrams = zram_list(&ctx->n_zrams);
+        log_debug("Dashboard page: %u cores, %u zram devices",
+                  (guint)ctx->n_cores, (guint)ctx->n_zrams);
 
         title = gtk_label_new("Dashboard");
         gtk_label_set_xalign(GTK_LABEL(title), 0.0f);

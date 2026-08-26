@@ -1,4 +1,5 @@
 #include "sysfs.h"
+#include "log.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -16,8 +17,10 @@ read_trimmed(const gchar *path)
 
         if (path == NULL)
                 return NULL;
-        if (!g_file_get_contents(path, &contents, NULL, NULL))
+        if (!g_file_get_contents(path, &contents, NULL, NULL)) {
+                log_debug("%s: read failed", path);
                 return NULL;
+        }
 
         return g_strstrip(contents);
 }
@@ -47,6 +50,7 @@ write_string(const gchar *path, const gchar *value, GError **error)
         fd = open(path, O_WRONLY);
         if (fd < 0) {
                 int saved = errno;
+                log_warn("%s: open failed: %s", path, g_strerror(saved));
                 g_set_error(error, G_IO_ERROR,
                             g_io_error_from_errno(saved),
                             "%s: %s", path, g_strerror(saved));
@@ -57,6 +61,7 @@ write_string(const gchar *path, const gchar *value, GError **error)
         if (written < 0) {
                 int saved = errno;
                 close(fd);
+                log_warn("%s: write failed: %s", path, g_strerror(saved));
                 g_set_error(error, G_IO_ERROR,
                             g_io_error_from_errno(saved),
                             "%s: %s", path, g_strerror(saved));
@@ -64,6 +69,7 @@ write_string(const gchar *path, const gchar *value, GError **error)
         }
 
         close(fd);
+        log_info("%s <- \"%s\"", path, value);
         return TRUE;
 }
 
@@ -91,6 +97,7 @@ read_int64(const gchar *path, gint64 *out_value)
 
         value = g_ascii_strtoll(text, &end, 10);
         if (end == text) {
+                log_debug("%s: not an integer (\"%s\")", path, text);
                 g_free(text);
                 return FALSE;
         }
@@ -202,6 +209,7 @@ list_dir(const gchar *path, gsize *count)
         if (dir == NULL) {
                 if (count != NULL)
                         *count = 0;
+                log_debug("%s: cannot list directory", path);
                 g_ptr_array_add(names, NULL);
                 return (gchar **)g_ptr_array_free(names, FALSE);
         }

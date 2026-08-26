@@ -1,6 +1,7 @@
 # Build artifacts
 bin/
 build/
+.config
 *.o
 *.obj
 *.d

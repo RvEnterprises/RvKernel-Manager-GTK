@@ -4,6 +4,7 @@
 
 #include "../../core/gpu.h"
 #include "../../util/format.h"
+#include "../../util/log.h"
 #include "../../util/sysfs.h"
 
 typedef struct {
@@ -29,6 +30,7 @@ show_write_error(GtkWidget *window, GError **error)
 {
         gchar *msg = g_strdup_printf("Failed to apply setting: %s",
                                      window_error_text(error));
+        log_error("gpu page: apply failed: %s", window_error_text(error));
         window_show_toast(window, msg);
         g_free(msg);
 }
@@ -246,6 +248,7 @@ page_gpu_new(GtkWidget *window)
         ctx = g_new0(GpuCtx, 1);
         ctx->uis = g_ptr_array_new_with_free_func(g_free);
         ctx->cards = gpu_cards(&ctx->n_cards);
+        log_debug("GPU page: %u cards", (guint)ctx->n_cards);
 
         title = gtk_label_new("GPU");
         gtk_label_set_xalign(GTK_LABEL(title), 0.0f);

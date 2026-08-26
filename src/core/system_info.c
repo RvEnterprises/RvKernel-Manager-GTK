@@ -1,6 +1,7 @@
 #include "system_info.h"
 
 #include "../util/format.h"
+#include "../util/log.h"
 #include "../util/sysfs.h"
 
 #include <string.h>
@@ -155,6 +156,10 @@ info_cache_init(void)
 
         cores = sysconf(_SC_NPROCESSORS_ONLN);
         info_cache.n_cores = cores > 0 ? (gsize)cores : 1;
+
+        log_info("host %s, %s, %s, %u core(s)",
+                 info_cache.hostname, info_cache.distro,
+                 info_cache.kernel, (guint)info_cache.n_cores);
 }
 
 SystemInfo *

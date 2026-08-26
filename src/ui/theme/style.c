@@ -1,5 +1,7 @@
 #include "style.h"
 
+#include "../../util/log.h"
+
 /*
  * Material 3 color scheme generated with Material Theme Builder
  * (material-theme/css/{light,dark}.css). GTK CSS has no custom
@@ -159,6 +161,7 @@ style_set_dark(gboolean dark)
                 GTK_STYLE_PROVIDER(provider),
                 GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
         active_provider = provider;
+        log_debug("style switched to %s palette", dark ? "dark" : "light");
 }
 
 void
@@ -170,5 +173,6 @@ style_init(void)
                 return;
         initialized = TRUE;
 
+        log_debug("style init");
         style_set_dark(FALSE);
 }

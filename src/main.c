@@ -1,5 +1,6 @@
 #include "application.h"
 #include "ui/window.h"
+#include "util/log.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -53,6 +54,7 @@ report_elevation_ready(void)
         nwritten = write(fd, &b, 1);
         (void)nwritten;
         close(fd);
+        log_debug("elevation readiness signalled on fd %d", fd);
 }
 
 static gboolean
@@ -89,6 +91,8 @@ try_elevate(const gchar *pkexec, int *exit_status)
         if (pid == 0) {
                 close(fds[0]);
                 execv(pkexec, (char * const *)args->pdata);
+                log_error("exec %s failed: %s", pkexec,
+                          g_strerror(errno));
                 _exit(127);
         }
         close(fds[1]);
@@ -132,17 +136,23 @@ elevate_if_needed(void)
         if (geteuid() == 0)
                 return;
 
+        log_debug("uid %u, looking for pkexec", geteuid());
         pkexec = g_find_program_in_path("pkexec");
         if (pkexec == NULL) {
                 g_printerr("%s: root access required "
                            "(polkit's pkexec not found)\n",
                            APP_NAME);
+                log_error("pkexec not found, cannot elevate");
                 _exit(1);
         }
 
-        if (try_elevate(pkexec, &exit_status))
+        if (try_elevate(pkexec, &exit_status)) {
+                log_info("elevated instance exited with status %d",
+                         exit_status);
                 _exit(exit_status);
+        }
 
+        log_warn("elevation failed (exit status %d)", exit_status);
         if (exit_status == 0)
                 exit_status = 1;
         _exit(exit_status);
@@ -154,6 +164,8 @@ main(int argc, char **argv)
         GtkApplication *app;
         int status;
 
+        log_info("starting %s %s (pid %d, uid %u)", APP_NAME, VERSION,
+                 (int)getpid(), geteuid());
         elevate_if_needed();
         report_elevation_ready();
 
@@ -161,5 +173,6 @@ main(int argc, char **argv)
         status = g_application_run(G_APPLICATION(app), argc, argv);
         g_object_unref(app);
 
+        log_info("shutting down with status %d", status);
         return status;
 }
