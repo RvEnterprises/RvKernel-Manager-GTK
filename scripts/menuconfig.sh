@@ -25,9 +25,15 @@ while true; do
         debug_state="ON"
     fi
 
-    CHOICE=$(whiptail --title "RvKernel Manager Configuration" --menu "Arrow keys navigate, Enter selects" 15 60 4 \
+    ccache_state="OFF"
+    if [ "${CONF[CCACHE]}" = "y" ]; then
+        ccache_state="ON"
+    fi
+
+    CHOICE=$(whiptail --title "RvKernel Manager Configuration" --menu "Arrow keys navigate, Enter selects" 15 60 5 \
         "1" "C compiler ($cc_state)" \
         "2" "Diagnostic logging ($debug_state)" \
+        "3" "Use ccache ($ccache_state)" \
         "S" "Save and Exit" \
         "Q" "Quit without saving" \
         3>&1 1>&2 2>&3) || CHOICE="Q"
@@ -55,6 +61,13 @@ while true; do
                 CONF[DEBUG]="y"
             fi
             ;;
+        "3")
+            if [ "$ccache_state" = "ON" ]; then
+                CONF[CCACHE]="n"
+            else
+                CONF[CCACHE]="y"
+            fi
+            ;;
         "S")
             cat << OUT > "$chosen"
 #
@@ -67,6 +80,7 @@ while true; do
 CONFIG_CC_GCC=${CONF[CC_GCC]:-y}
 CONFIG_CC_CLANG=${CONF[CC_CLANG]:-n}
 CONFIG_DEBUG=${CONF[DEBUG]:-n}
+CONFIG_CCACHE=${CONF[CCACHE]:-y}
 OUT
             echo "Configuration saved to configs/config"
             make config
@@ -78,3 +92,4 @@ OUT
             ;;
     esac
 done
+
