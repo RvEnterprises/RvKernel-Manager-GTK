@@ -30,3 +30,9 @@ config DEBUG
 	  privilege handling, sysfs and procfs access, page construction,
 	  refresh ticks, and every setting that gets applied.
 	  Disable for a silent build with zero logging overhead.
+
+config CCACHE
+	bool "Use ccache"
+	default y
+	help
+	  Prefix compiler invocations with ccache to speed up recompilations.

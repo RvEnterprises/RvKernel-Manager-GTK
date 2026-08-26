@@ -23,7 +23,10 @@ CC_DEFAULT = $(if $(findstring CONFIG_CC_CLANG=y,$(CONFIG_Y)),clang,gcc)
 ifeq ($(origin CC),default)
 CC         = $(CC_DEFAULT)
 endif
-CCACHE    ?= ccache
+
+CCACHE_DEFAULT = $(if $(findstring CONFIG_CCACHE=y,$(CONFIG_Y)),ccache,)
+CCACHE        ?= $(CCACHE_DEFAULT)
+
 CFLAGS    ?= -O2
 CFLAGS    += -std=c11 -D_GNU_SOURCE -Wall -Wextra -Wno-unused-parameter \
              $(shell pkg-config --cflags $(PKGS))
