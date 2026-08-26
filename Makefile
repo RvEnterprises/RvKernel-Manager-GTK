@@ -37,12 +37,15 @@ ICONS     := $(shell find data/icons -name '*.svg')
 RES_XML   := data/icons/icons.gresource.xml
 RES_OBJ   := $(BUILD_DIR)/icons_resources.o
 
-.PHONY: all config run clean mrproper install uninstall
+.PHONY: all config menuconfig run clean mrproper install uninstall
 
 all: $(BIN_DIR)/$(APP_NAME)
 
 config:
 	sh scripts/genconfig.sh
+
+menuconfig:
+	bash scripts/menuconfig.sh
 
 $(CONFIG): $(KCONFIG) $(DEF_CONFIG) scripts/genconfig.sh
 	sh scripts/genconfig.sh
