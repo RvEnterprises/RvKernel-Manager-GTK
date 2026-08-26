@@ -10,6 +10,7 @@ DATADIR   := $(DESTDIR)$(PREFIX)/share
 PKGS      := gtk4
 
 CC        ?= gcc
+CCACHE    ?= ccache
 CFLAGS    ?= -O2
 CFLAGS    += -std=c11 -D_GNU_SOURCE -Wall -Wextra -Wno-unused-parameter \
              $(shell pkg-config --cflags $(PKGS))
@@ -34,11 +35,11 @@ $(RES_OBJ): $(RES_XML) $(ICONS)
 	@mkdir -p $(dir $@)
 	glib-compile-resources --sourcedir=data/icons \
 		--target=$@.c --generate-source $(RES_XML)
-	$(CC) $(CFLAGS) -c $@.c -o $@
+	$(CCACHE) $(CC) $(CFLAGS) -c $@.c -o $@
 
 $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+	$(CCACHE) $(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 run: all
 	./$(BIN_DIR)/$(APP_NAME)
