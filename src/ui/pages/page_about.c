@@ -33,7 +33,6 @@ page_about_new(GtkWidget *window)
         GtkWidget *scrolled, *content, *title;
         GtkWidget *card, *row;
         AboutCtx *ctx;
-        gchar *desc;
 
         content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 14);
         gtk_widget_add_css_class(content, "page");
@@ -51,22 +50,6 @@ page_about_new(GtkWidget *window)
 
         row = kv_row("Version");
         kv_set(row, "%s", VERSION);
-        card_add(card, row);
-
-        desc = g_strdup_printf(
-                "Desktop port of the Android app: monitor and tune CPU "
-                "governors and frequencies, GPU devfreq devices, battery "
-                "charge limits, memory tunables and ZRAM.");
-        row = kv_row("Description");
-        {
-                GtkLabel *value =
-                        GTK_LABEL(g_object_get_data(G_OBJECT(row),
-                                                    "value-label"));
-                gtk_label_set_wrap(value, TRUE);
-                gtk_label_set_xalign(value, 1.0f);
-        }
-        kv_set(row, "%s", desc);
-        g_free(desc);
         card_add(card, row);
 
         row = kv_row("Developer");
