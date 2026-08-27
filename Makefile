@@ -13,6 +13,28 @@ DATADIR   := $(DESTDIR)$(PREFIX)/share
 
 PKGS      := gtk4
 
+# -- Verbosity controlled via V. V=0 (default) prints short lines like
+#    "  CC      src/foo.c"; V=1 prints the full commands.
+ifdef V
+  ifeq ("$(origin V)", "command line")
+    KBUILD_VERBOSE = $(V)
+  endif
+endif
+ifndef KBUILD_VERBOSE
+  KBUILD_VERBOSE = 0
+endif
+
+ifeq ($(KBUILD_VERBOSE),1)
+  Q         =
+  quiet_cmd = 
+else
+  Q         = @
+  # Print a short line: two leading spaces, the action right-aligned
+  # to a fixed width, then the target. e.g. "  CC      src/foo.c"
+  # Empty at V=1 so make shows the full command instead.
+  quiet_cmd = @printf '  %-8s%s\n' '$(1)' '$(2)'
+endif
+
 CONFIG_Y  = $(shell sed -n '/^CONFIG_[A-Za-z0-9_]*=y$$/p' $(CONFIG) \
               2>/dev/null)
 
@@ -76,23 +98,27 @@ help:
 	@echo '  run             - Build and run'
 	@echo '  clean           - Remove build artifacts'
 	@echo '  mrproper        - Remove build artifacts and .config'
+	@echo '  V=1             - Verbose output; show the full build commands'
 	@echo ''
 	@echo 'Install targets:'
 	@echo '  install         - Install to PREFIX (default /usr/local)'
 	@echo '  uninstall       - Remove installed files'
 $(BIN_DIR)/$(APP_NAME): $(OBJS) $(RES_OBJ)
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+	$(call quiet_cmd,LD,$@)
+	$(Q)$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(RES_OBJ): $(RES_XML) $(ICONS) $(CONFIG)
 	@mkdir -p $(dir $@)
-	glib-compile-resources --sourcedir=data/icons \
+	$(call quiet_cmd,GEN,$@)
+	$(Q)glib-compile-resources --sourcedir=data/icons \
 		--target=$@.c --generate-source $(RES_XML)
-	$(CCACHE) $(CC) $(CFLAGS) -c $@.c -o $@
+	$(Q)$(CCACHE) $(CC) $(CFLAGS) -c $@.c -o $@
 
 $(BUILD_DIR)/%.o: src/%.c $(CONFIG)
 	@mkdir -p $(dir $@)
-	$(CCACHE) $(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+	$(call quiet_cmd,CC,$@)
+	$(Q)$(CCACHE) $(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 run: all
 	./$(BIN_DIR)/$(APP_NAME)
