@@ -1,7 +1,10 @@
 #!/bin/bash
+# Interactive TUI configuration generator — identical to Linux kernel's menuconfig.
+# 100% dynamically parsed and driven from Kconfig.
 set -e
 
 root=$(cd "$(dirname "$0")/.." && pwd)
+kconfig="$root/Kconfig"
 chosen="$root/configs/config"
 
 # The kernel menuconfig depends on dialog; this script does the same.
@@ -15,73 +18,237 @@ if ! command -v dialog &>/dev/null; then
         exit 1
 fi
 
-# ---- parse current config ------------------------------------------------
+# ---- read current values --------------------------------------------------
 declare -A CONF
-while IFS='=' read -r key val; do
-        [[ $key == CONFIG_* ]] && CONF[${key#CONFIG_}]=$val
-done < "$chosen"
+if [ -f "$chosen" ]; then
+        while IFS='=' read -r key val; do
+                [[ $key == CONFIG_* ]] && CONF[${key#CONFIG_}]=$val
+        done < "$chosen"
+fi
+
+# ---- parse Kconfig --------------------------------------------------------
+declare -a ITEMS=()        # "choice:<ci>" or "config:<sym>" in visual order
+declare -a ALL_SYMS=()     # every symbol declared
+
+declare -A PROMPT=()
+declare -A DEFAULT=()
+declare -A DEPENDS=()
+declare -A HELP=()
+
+declare -a CHOICE_MEMBERS=()
+declare -A CHOICE_TITLE=()
+declare -A CHOICE_DEFAULT=()
+declare -A CHOICE_DEPENDS=()
+
+cur_sym=""
+cur_help=""
+in_help=0
+in_choice=0
+choice_syms=""
+choice_title=""
+choice_default=""
+choice_depends=""
+title=""
+
+finish_help() {
+        if [ -n "$cur_sym" ] && [ -n "$cur_help" ]; then
+                HELP[$cur_sym]="$cur_help"
+        fi
+        cur_help=""
+        in_help=0
+}
+
+while IFS= read -r line; do
+        if [ "$in_help" = "1" ]; then
+                if [[ "$line" =~ ^[[:space:]] ]] || [[ -z "$line" ]]; then
+                        cur_help+="${line}"$'\n'
+                        continue
+                else
+                        finish_help
+                fi
+        fi
+
+        trimmed="${line#"${line%%[![:space:]]*}"}"
+        [[ -z "$trimmed" || "$trimmed" == \#* ]] && continue
+
+        keyword="${trimmed%% *}"
+        rest="${trimmed#* }"
+        [ "$keyword" = "$rest" ] && rest=""
+
+        case "$keyword" in
+                mainmenu)
+                        title=$(echo "$rest" | sed 's/^"//;s/"$//')
+                        ;;
+                choice)
+                        in_choice=1
+                        choice_syms=""
+                        choice_title=""
+                        choice_default=""
+                        choice_depends=""
+                        ;;
+                endchoice)
+                        finish_help
+                        in_choice=0
+                        ci=${#CHOICE_MEMBERS[@]}
+                        CHOICE_MEMBERS+=("$choice_syms")
+                        CHOICE_TITLE[$ci]="$choice_title"
+                        CHOICE_DEFAULT[$ci]="$choice_default"
+                        CHOICE_DEPENDS[$ci]="$choice_depends"
+                        ITEMS+=("choice:$ci")
+                        ;;
+                prompt)
+                        if [ "$in_choice" = "1" ]; then
+                                choice_title=$(echo "$rest" | sed 's/^"//;s/"$//')
+                        fi
+                        ;;
+                config)
+                        finish_help
+                        cur_sym="$rest"
+                        ALL_SYMS+=("$cur_sym")
+                        DEFAULT[$cur_sym]="n"
+                        if [ "$in_choice" = "1" ]; then
+                                [ -n "$choice_syms" ] && choice_syms+=" "
+                                choice_syms+="$cur_sym"
+                                [ -n "$choice_depends" ] && DEPENDS[$cur_sym]="$choice_depends"
+                        else
+                                ITEMS+=("config:$cur_sym")
+                        fi
+                        ;;
+                bool)
+                        PROMPT[$cur_sym]=$(echo "$rest" | sed 's/^"//;s/"$//')
+                        ;;
+                default)
+                        if [ "$in_choice" = "1" ] && [ "$rest" != "y" ] && [ "$rest" != "n" ]; then
+                                choice_default="$rest"
+                        else
+                                DEFAULT[$cur_sym]="$rest"
+                        fi
+                        ;;
+                depends)
+                        dep="${rest#on }"
+                        if [ "$in_choice" = "1" ]; then
+                                choice_depends="$dep"
+                        else
+                                DEPENDS[$cur_sym]="$dep"
+                        fi
+                        ;;
+                help)
+                        in_help=1
+                        cur_help=""
+                        ;;
+        esac
+done < "$kconfig"
+finish_help
+
+# ---- initialize unset config values ---------------------------------------
+for sym in "${ALL_SYMS[@]}"; do
+        [ -z "${CONF[$sym]+x}" ] && CONF[$sym]="${DEFAULT[$sym]}"
+done
+for ci in "${!CHOICE_MEMBERS[@]}"; do
+        read -ra members <<< "${CHOICE_MEMBERS[$ci]}"
+        has_y=0
+        for m in "${members[@]}"; do
+                [ "${CONF[$m]}" = "y" ] && has_y=1
+        done
+        if [ "$has_y" = "0" ] && [ -n "${CHOICE_DEFAULT[$ci]}" ]; then
+                CONF[${CHOICE_DEFAULT[$ci]}]="y"
+        fi
+done
 
 # fd 3 = real terminal (dialog draws on stdout, result on stderr)
 exec 3>&1
 dlg() { dialog "$@" 2>&1 1>&3; }
 
-bool_mark() { [ "${CONF[$1]}" = "y" ] && echo "[*]" || echo "[ ]"; }
+eval_dep() {
+        local dep="$1"
+        if [ -z "$dep" ] || [ "${CONF[$dep]}" = "y" ]; then
+                return 0
+        fi
+        return 1
+}
 
-# ---- save helper ----------------------------------------------------------
+enforce_dependencies() {
+        # Evaluate choice dependencies
+        for ci in "${!CHOICE_MEMBERS[@]}"; do
+                read -ra members <<< "${CHOICE_MEMBERS[$ci]}"
+                if ! eval_dep "${CHOICE_DEPENDS[$ci]}"; then
+                        for m in "${members[@]}"; do CONF[$m]="n"; done
+                else
+                        has_y=0
+                        for m in "${members[@]}"; do
+                                [ "${CONF[$m]}" = "y" ] && has_y=$((has_y + 1))
+                        done
+                        if [ "$has_y" -ne 1 ]; then
+                                for m in "${members[@]}"; do CONF[$m]="n"; done
+                                def="${CHOICE_DEFAULT[$ci]}"
+                                [ -n "$def" ] && CONF[$def]="y" || CONF[${members[0]}]="y"
+                        fi
+                fi
+        done
+
+        # Evaluate standalone config dependencies
+        for sym in "${ALL_SYMS[@]}"; do
+                if [ -n "${DEPENDS[$sym]}" ]; then
+                        if ! eval_dep "${DEPENDS[$sym]}"; then
+                                CONF[$sym]="n"
+                        fi
+                fi
+        done
+}
+
 save_config() {
-        cat <<OUT > "$chosen"
-#
-# RvKernel Manager Configuration
-#
-
-CONFIG_CC_GCC=${CONF[CC_GCC]:-y}
-CONFIG_CC_CLANG=${CONF[CC_CLANG]:-n}
-CONFIG_LTO=${CONF[LTO]:-n}
-CONFIG_LTO_FULL=${CONF[LTO_FULL]:-n}
-CONFIG_LTO_THIN=${CONF[LTO_THIN]:-y}
-CONFIG_DEBUG=${CONF[DEBUG]:-n}
-CONFIG_CCACHE=${CONF[CCACHE]:-y}
-OUT
+        {
+                echo "#"
+                echo "# RvKernel Manager Configuration"
+                echo "#"
+                for sym in "${ALL_SYMS[@]}"; do
+                        echo "CONFIG_${sym}=${CONF[$sym]:-n}"
+                done
+        } > "$chosen"
         sh "$root/scripts/genconfig.sh"
 }
 
-# ---- main loop -----------------------------------------------------------
+# ---- main menu loop -------------------------------------------------------
 while true; do
-        if [ "${CONF[CC_CLANG]}" = "y" ]; then
-                cc_desc="Build with Clang"
-        else
-                cc_desc="Build with GCC"
-        fi
+        enforce_dependencies
 
-        items=(
-                "CC"     "    C compiler ($cc_desc)  --->"
-        )
-        if [ "${CONF[CC_CLANG]}" = "y" ]; then
-                items+=("LTO"    "    $(bool_mark LTO) Link-Time Optimization (LTO)")
-                if [ "${CONF[LTO]}" = "y" ]; then
-                        if [ "${CONF[LTO_FULL]}" = "y" ]; then
-                                lto_desc="Full LTO"
-                        else
-                                lto_desc="ThinLTO"
+        menu_items=()
+        for item in "${ITEMS[@]}"; do
+                if [[ "$item" == choice:* ]]; then
+                        ci="${item#choice:}"
+                        if eval_dep "${CHOICE_DEPENDS[$ci]}"; then
+                                read -ra members <<< "${CHOICE_MEMBERS[$ci]}"
+                                active_desc=""
+                                for m in "${members[@]}"; do
+                                        if [ "${CONF[$m]}" = "y" ]; then
+                                                active_desc="${PROMPT[$m]}"
+                                                break
+                                        fi
+                                done
+                                [ -z "$active_desc" ] && active_desc="None"
+                                menu_items+=("CHOICE_$ci" "    ${CHOICE_TITLE[$ci]} ($active_desc)  --->")
                         fi
-                        items+=("LTO_MODE" "        LTO mode ($lto_desc)  --->")
+                elif [[ "$item" == config:* ]]; then
+                        sym="${item#config:}"
+                        if eval_dep "${DEPENDS[$sym]}"; then
+                                mark="[ ]"
+                                [ "${CONF[$sym]}" = "y" ] && mark="[*]"
+                                menu_items+=("CONFIG_$sym" "    $mark ${PROMPT[$sym]}")
+                        fi
                 fi
-        fi
-        items+=(
-                "DEBUG"  "    $(bool_mark DEBUG) Diagnostic logging"
-                "CCACHE" "    $(bool_mark CCACHE) Use ccache"
-        )
-        num_items=$((${#items[@]} / 2))
+        done
+
+        num_items=$((${#menu_items[@]} / 2))
 
         CHOICE=$(dlg --clear --no-tags \
-                --title "RvKernel Manager Configuration" \
+                --title "${title:-RvKernel Manager Configuration}" \
                 --ok-label "Select" \
                 --cancel-label "Exit" \
                 --menu \
 "Arrow keys navigate the menu.  <Enter> selects submenus --->.
 Press <Esc><Esc> to exit.  Legend: [*] built-in  [ ] excluded" \
                 18 70 "$num_items" \
-                "${items[@]}") \
+                "${menu_items[@]}") \
         || {
                 # Exit or Esc — prompt to save, exactly like kernel menuconfig
                 if dlg --yesno \
@@ -103,84 +270,46 @@ Press <Esc><Esc> to exit.  Legend: [*] built-in  [ ] excluded" \
                 break
         }
 
-        case "$CHOICE" in
-                CC)
-                        gcc_mark="( )"; clang_mark="( )"
-                        if [ "${CONF[CC_CLANG]}" = "y" ]; then
-                                clang_mark="(X)"; def=CC_CLANG
-                        else
-                                gcc_mark="(X)"; def=CC_GCC
-                        fi
+        if [[ "$CHOICE" == CHOICE_* ]]; then
+                ci="${CHOICE#CHOICE_}"
+                read -ra members <<< "${CHOICE_MEMBERS[$ci]}"
 
-                        SEL=$(dlg --clear --no-tags \
-                                --title "C compiler" \
-                                --ok-label "Select" \
-                                --cancel-label "Exit" \
-                                --default-item "$def" \
-                                --menu \
+                choice_items=()
+                def_item=""
+                for m in "${members[@]}"; do
+                        mark="( )"
+                        if [ "${CONF[$m]}" = "y" ]; then
+                                mark="(X)"
+                                def_item="$m"
+                        fi
+                        choice_items+=("$m" "$mark ${PROMPT[$m]}")
+                done
+                [ -z "$def_item" ] && def_item="${members[0]}"
+
+                SEL=$(dlg --clear --no-tags \
+                        --title "${CHOICE_TITLE[$ci]}" \
+                        --ok-label "Select" \
+                        --cancel-label "Exit" \
+                        --default-item "$def_item" \
+                        --menu \
 "Use the arrow keys to navigate this window or
 press the hotkey of the item you wish to select
 followed by the <ENTER> key." \
-                                15 50 2 \
-                                "CC_GCC"   "$gcc_mark Build with GCC" \
-                                "CC_CLANG" "$clang_mark Build with Clang") || true
+                        15 50 "${#members[@]}" \
+                        "${choice_items[@]}") || true
 
-                        if [ -n "$SEL" ]; then
-                                if [ "$SEL" = "CC_GCC" ]; then
-                                        CONF[CC_GCC]="y"; CONF[CC_CLANG]="n"
-                                        CONF[LTO]="n"
-                                else
-                                        CONF[CC_GCC]="n"; CONF[CC_CLANG]="y"
-                                fi
-                        fi
-                        ;;
-                LTO)
-                        if [ "${CONF[LTO]}" = "y" ]; then
-                                CONF[LTO]="n"
-                        else
-                                CONF[LTO]="y"
-                                if [ "${CONF[LTO_FULL]}" != "y" ] && [ "${CONF[LTO_THIN]}" != "y" ]; then
-                                        CONF[LTO_THIN]="y"
-                                        CONF[LTO_FULL]="n"
-                                fi
-                        fi
-                        ;;
-                LTO_MODE)
-                        full_mark="( )"; thin_mark="( )"
-                        if [ "${CONF[LTO_FULL]}" = "y" ]; then
-                                full_mark="(X)"; def=LTO_FULL
-                        else
-                                thin_mark="(X)"; def=LTO_THIN
-                        fi
-
-                        SEL=$(dlg --clear --no-tags \
-                                --title "LTO mode" \
-                                --ok-label "Select" \
-                                --cancel-label "Exit" \
-                                --default-item "$def" \
-                                --menu \
-"Use the arrow keys to navigate this window or
-press the hotkey of the item you wish to select
-followed by the <ENTER> key." \
-                                15 50 2 \
-                                "LTO_FULL" "$full_mark Full LTO" \
-                                "LTO_THIN" "$thin_mark ThinLTO") || true
-
-                        if [ -n "$SEL" ]; then
-                                if [ "$SEL" = "LTO_FULL" ]; then
-                                        CONF[LTO_FULL]="y"; CONF[LTO_THIN]="n"
-                                else
-                                        CONF[LTO_FULL]="n"; CONF[LTO_THIN]="y"
-                                fi
-                        fi
-                        ;;
-                DEBUG)
-                        [ "${CONF[DEBUG]}" = "y" ] && CONF[DEBUG]="n" || CONF[DEBUG]="y"
-                        ;;
-                CCACHE)
-                        [ "${CONF[CCACHE]}" = "y" ] && CONF[CCACHE]="n" || CONF[CCACHE]="y"
-                        ;;
-        esac
+                if [ -n "$SEL" ]; then
+                        for m in "${members[@]}"; do CONF[$m]="n"; done
+                        CONF[$SEL]="y"
+                fi
+        elif [[ "$CHOICE" == CONFIG_* ]]; then
+                sym="${CHOICE#CONFIG_}"
+                if [ "${CONF[$sym]}" = "y" ]; then
+                        CONF[$sym]="n"
+                else
+                        CONF[$sym]="y"
+                fi
+        fi
 done
 
 exec 3>&-
