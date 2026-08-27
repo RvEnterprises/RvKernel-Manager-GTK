@@ -22,6 +22,15 @@ config CC_CLANG
 
 endchoice
 
+config LTO
+	bool "Link-Time Optimization (LTO)"
+	depends on CC_CLANG
+	default n
+	help
+	  Enable Link-Time Optimization (LTO) when building with Clang to
+	  optimize across translation units and produce smaller, faster
+	  binaries. Only available when building with Clang.
+
 config DEBUG
 	bool "Diagnostic logging"
 	default y

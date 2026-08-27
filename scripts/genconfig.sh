@@ -68,6 +68,10 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
             next
         if ($1 == "bool")
             next
+        if ($1 == "depends" && $2 == "on") {
+            depends_on[name] = $3
+            next
+        }
         if ($1 == "default") {
             val = $2
             if (val != "y" && val != "n") {
@@ -128,6 +132,15 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
             if (count != 1)
                 fail(kcfg, "choice must select exactly one of: " \
                            choice_members[ci])
+        }
+
+        for (i = 1; i <= n; i++) {
+            s = order[i]
+            if (s in depends_on) {
+                dep = depends_on[s]
+                if (value[dep] != "y")
+                    value[s] = "n"
+            }
         }
 
         printf "#\n" \

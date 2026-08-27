@@ -36,6 +36,7 @@ save_config() {
 
 CONFIG_CC_GCC=${CONF[CC_GCC]:-y}
 CONFIG_CC_CLANG=${CONF[CC_CLANG]:-n}
+CONFIG_LTO=${CONF[LTO]:-n}
 CONFIG_DEBUG=${CONF[DEBUG]:-n}
 CONFIG_CCACHE=${CONF[CCACHE]:-y}
 OUT
@@ -50,6 +51,18 @@ while true; do
                 cc_desc="Build with GCC"
         fi
 
+        items=(
+                "CC"     "    C compiler ($cc_desc)  --->"
+        )
+        if [ "${CONF[CC_CLANG]}" = "y" ]; then
+                items+=("LTO"    "    $(bool_mark LTO) Link-Time Optimization (LTO)")
+        fi
+        items+=(
+                "DEBUG"  "    $(bool_mark DEBUG) Diagnostic logging"
+                "CCACHE" "    $(bool_mark CCACHE) Use ccache"
+        )
+        num_items=$((${#items[@]} / 2))
+
         CHOICE=$(dlg --clear --no-tags \
                 --title "RvKernel Manager Configuration" \
                 --ok-label "Select" \
@@ -57,10 +70,8 @@ while true; do
                 --menu \
 "Arrow keys navigate the menu.  <Enter> selects submenus --->.
 Press <Esc><Esc> to exit.  Legend: [*] built-in  [ ] excluded" \
-                18 70 4 \
-                "CC"     "    C compiler ($cc_desc)  --->" \
-                "DEBUG"  "    $(bool_mark DEBUG) Diagnostic logging" \
-                "CCACHE" "    $(bool_mark CCACHE) Use ccache") \
+                18 70 "$num_items" \
+                "${items[@]}") \
         || {
                 # Exit or Esc — prompt to save, exactly like kernel menuconfig
                 if dlg --yesno \
@@ -107,10 +118,14 @@ followed by the <ENTER> key." \
                         if [ -n "$SEL" ]; then
                                 if [ "$SEL" = "CC_GCC" ]; then
                                         CONF[CC_GCC]="y"; CONF[CC_CLANG]="n"
+                                        CONF[LTO]="n"
                                 else
                                         CONF[CC_GCC]="n"; CONF[CC_CLANG]="y"
                                 fi
                         fi
+                        ;;
+                LTO)
+                        [ "${CONF[LTO]}" = "y" ] && CONF[LTO]="n" || CONF[LTO]="y"
                         ;;
                 DEBUG)
                         [ "${CONF[DEBUG]}" = "y" ] && CONF[DEBUG]="n" || CONF[DEBUG]="y"

@@ -20,6 +20,7 @@ declare -a ORDER=()
 declare -A TYPE=()
 declare -A PROMPT=()
 declare -A DEFAULT=()
+declare -A DEPENDS=()
 declare -A HELP=()
 
 declare -a CHOICE_MEMBERS=()
@@ -103,6 +104,10 @@ while IFS= read -r line; do
                                 DEFAULT[$cur_sym]="$rest"
                         fi
                         ;;
+                depends)
+                        dep="${rest#on }"
+                        DEPENDS[$cur_sym]="$dep"
+                        ;;
                 help)
                         in_help=1
                         cur_help=""
@@ -177,6 +182,14 @@ for sym in "${ORDER[@]}"; do
         elif [ -n "$in_ci" ]; then
                 continue
         else
+                if [ -n "${DEPENDS[$sym]}" ]; then
+                        dep="${DEPENDS[$sym]}"
+                        if [ "${CONF[$dep]}" != "y" ]; then
+                                CONF[$sym]="n"
+                                continue
+                        fi
+                fi
+
                 cur="${CONF[$sym]}"
                 if [ "$cur" = "y" ]; then ds="Y/n/?"; else ds="y/N/?"; fi
 

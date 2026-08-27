@@ -33,6 +33,13 @@ CFLAGS    += -std=c11 -D_GNU_SOURCE -Wall -Wextra -Wno-unused-parameter \
 CFLAGS    += $(patsubst %,-D%,$(CONFIG_Y))
 LDLIBS    := $(shell pkg-config --libs $(PKGS)) -lm
 
+ifeq ($(findstring CONFIG_LTO=y,$(CONFIG_Y)),CONFIG_LTO=y)
+ifeq ($(findstring CONFIG_CC_CLANG=y,$(CONFIG_Y)),CONFIG_CC_CLANG=y)
+CFLAGS    += -flto
+LDFLAGS   += -flto
+endif
+endif
+
 SRCS      := $(shell find src -name '*.c' | sort)
 OBJS      := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 DEPS      := $(OBJS:.o=.d)
