@@ -131,8 +131,8 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
         }
 
         printf "#\n" \
-               "# Automatically generated; edit configs/config or\n" \
-               "# run \"make config\" instead of editing this file.\n" \
+               "# Automatically generated file; DO NOT EDIT.\n" \
+               "# RvKernel Manager Configuration\n" \
                "#\n" > out
         for (i = 1; i <= n; i++) {
             s = order[i]

@@ -40,19 +40,34 @@ ICONS     := $(shell find data/icons -name '*.svg')
 RES_XML   := data/icons/icons.gresource.xml
 RES_OBJ   := $(BUILD_DIR)/icons_resources.o
 
-.PHONY: all config menuconfig run clean mrproper install uninstall
+.PHONY: all config menuconfig run clean mrproper install uninstall help
 
 all: $(BIN_DIR)/$(APP_NAME)
 
 config:
-	sh scripts/genconfig.sh
+	bash scripts/config.sh
 
 menuconfig:
 	bash scripts/menuconfig.sh
 
+
 $(CONFIG): $(KCONFIG) $(DEF_CONFIG) scripts/genconfig.sh
 	sh scripts/genconfig.sh
 
+help:
+	@echo 'Configuration targets:'
+	@echo '  config          - Update current config utilising a line-oriented program'
+	@echo '  menuconfig      - Update current config utilising a menu based program'
+	@echo ''
+	@echo 'Build targets:'
+	@echo '  all             - Build the application (default)'
+	@echo '  run             - Build and run'
+	@echo '  clean           - Remove build artifacts'
+	@echo '  mrproper        - Remove build artifacts and .config'
+	@echo ''
+	@echo 'Install targets:'
+	@echo '  install         - Install to PREFIX (default /usr/local)'
+	@echo '  uninstall       - Remove installed files'
 $(BIN_DIR)/$(APP_NAME): $(OBJS) $(RES_OBJ)
 	@mkdir -p $(BIN_DIR)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
