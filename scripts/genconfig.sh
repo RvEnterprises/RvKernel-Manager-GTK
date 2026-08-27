@@ -29,6 +29,7 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
             in_choice++
             members = ""
             cdefault = ""
+            cdep = ""
             next
         }
         if ($1 == "endchoice") {
@@ -39,7 +40,12 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
             n_choices++
             choice_members[n_choices] = members
             choice_default[n_choices] = cdefault
+            choice_depends[n_choices] = cdep
             in_choice--
+            next
+        }
+        if (in_choice && $1 == "depends" && $2 == "on") {
+            cdep = $3
             next
         }
         if ($1 == "prompt")
@@ -56,8 +62,11 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
                 order[++n] = name
             }
             value[name] = "n"
-            if (in_choice)
+            if (in_choice) {
                 members = members (members == "" ? "" : " ") name
+                if (cdep != "")
+                    depends_on[name] = cdep
+            }
             next
         }
         if (in_choice && $1 == "default") {
@@ -111,9 +120,15 @@ awk -v kcfg="$kconfig" -v chosen="$chosen" -v out="$out" '
 
     END {
         for (ci = 1; ci <= n_choices; ci++) {
+            dep = choice_depends[ci]
+            m = split(choice_members[ci], member, " ")
+            if (dep != "" && value[dep] != "y") {
+                for (j = 1; j <= m; j++)
+                    value[member[j]] = "n"
+                continue
+            }
             count = 0
             picked = ""
-            m = split(choice_members[ci], member, " ")
             for (j = 1; j <= m; j++)
                 if (value[member[j]] == "y") {
                     count++

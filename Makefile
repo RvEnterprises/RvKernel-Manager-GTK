@@ -35,8 +35,13 @@ LDLIBS    := $(shell pkg-config --libs $(PKGS)) -lm
 
 ifeq ($(findstring CONFIG_LTO=y,$(CONFIG_Y)),CONFIG_LTO=y)
 ifeq ($(findstring CONFIG_CC_CLANG=y,$(CONFIG_Y)),CONFIG_CC_CLANG=y)
-CFLAGS    += -flto
-LDFLAGS   += -flto
+ifeq ($(findstring CONFIG_LTO_FULL=y,$(CONFIG_Y)),CONFIG_LTO_FULL=y)
+LTO_FLAG := -flto=full
+else
+LTO_FLAG := -flto=thin
+endif
+CFLAGS    += $(LTO_FLAG)
+LDFLAGS   += $(LTO_FLAG)
 endif
 endif
 

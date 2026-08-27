@@ -37,6 +37,8 @@ save_config() {
 CONFIG_CC_GCC=${CONF[CC_GCC]:-y}
 CONFIG_CC_CLANG=${CONF[CC_CLANG]:-n}
 CONFIG_LTO=${CONF[LTO]:-n}
+CONFIG_LTO_FULL=${CONF[LTO_FULL]:-n}
+CONFIG_LTO_THIN=${CONF[LTO_THIN]:-y}
 CONFIG_DEBUG=${CONF[DEBUG]:-n}
 CONFIG_CCACHE=${CONF[CCACHE]:-y}
 OUT
@@ -56,6 +58,14 @@ while true; do
         )
         if [ "${CONF[CC_CLANG]}" = "y" ]; then
                 items+=("LTO"    "    $(bool_mark LTO) Link-Time Optimization (LTO)")
+                if [ "${CONF[LTO]}" = "y" ]; then
+                        if [ "${CONF[LTO_FULL]}" = "y" ]; then
+                                lto_desc="Full LTO"
+                        else
+                                lto_desc="ThinLTO"
+                        fi
+                        items+=("LTO_MODE" "        LTO mode ($lto_desc)  --->")
+                fi
         fi
         items+=(
                 "DEBUG"  "    $(bool_mark DEBUG) Diagnostic logging"
@@ -125,7 +135,44 @@ followed by the <ENTER> key." \
                         fi
                         ;;
                 LTO)
-                        [ "${CONF[LTO]}" = "y" ] && CONF[LTO]="n" || CONF[LTO]="y"
+                        if [ "${CONF[LTO]}" = "y" ]; then
+                                CONF[LTO]="n"
+                        else
+                                CONF[LTO]="y"
+                                if [ "${CONF[LTO_FULL]}" != "y" ] && [ "${CONF[LTO_THIN]}" != "y" ]; then
+                                        CONF[LTO_THIN]="y"
+                                        CONF[LTO_FULL]="n"
+                                fi
+                        fi
+                        ;;
+                LTO_MODE)
+                        full_mark="( )"; thin_mark="( )"
+                        if [ "${CONF[LTO_FULL]}" = "y" ]; then
+                                full_mark="(X)"; def=LTO_FULL
+                        else
+                                thin_mark="(X)"; def=LTO_THIN
+                        fi
+
+                        SEL=$(dlg --clear --no-tags \
+                                --title "LTO mode" \
+                                --ok-label "Select" \
+                                --cancel-label "Exit" \
+                                --default-item "$def" \
+                                --menu \
+"Use the arrow keys to navigate this window or
+press the hotkey of the item you wish to select
+followed by the <ENTER> key." \
+                                15 50 2 \
+                                "LTO_FULL" "$full_mark Full LTO" \
+                                "LTO_THIN" "$thin_mark ThinLTO") || true
+
+                        if [ -n "$SEL" ]; then
+                                if [ "$SEL" = "LTO_FULL" ]; then
+                                        CONF[LTO_FULL]="y"; CONF[LTO_THIN]="n"
+                                else
+                                        CONF[LTO_FULL]="n"; CONF[LTO_THIN]="y"
+                                fi
+                        fi
                         ;;
                 DEBUG)
                         [ "${CONF[DEBUG]}" = "y" ] && CONF[DEBUG]="n" || CONF[DEBUG]="y"

@@ -31,6 +31,25 @@ config LTO
 	  optimize across translation units and produce smaller, faster
 	  binaries. Only available when building with Clang.
 
+choice
+	prompt "LTO mode"
+	default LTO_THIN
+	depends on LTO
+
+config LTO_FULL
+	bool "Full LTO"
+	help
+	  Perform full link-time optimization. Produces the most optimal code
+	  but requires more memory and link time.
+
+config LTO_THIN
+	bool "ThinLTO"
+	help
+	  Perform Thin link-time optimization. Scalable and faster link times
+	  with almost identical optimization results as full LTO.
+
+endchoice
+
 config DEBUG
 	bool "Diagnostic logging"
 	default y

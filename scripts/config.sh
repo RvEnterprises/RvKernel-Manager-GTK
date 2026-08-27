@@ -26,6 +26,7 @@ declare -A HELP=()
 declare -a CHOICE_MEMBERS=()
 declare -A CHOICE_TITLE=()
 declare -A CHOICE_DEFAULT=()
+declare -A CHOICE_DEPENDS=()
 
 cur_sym=""
 cur_help=""
@@ -34,6 +35,7 @@ in_choice=0
 choice_syms=""
 choice_title=""
 choice_default=""
+choice_depends=""
 
 finish_help() {
         if [ -n "$cur_sym" ] && [ -n "$cur_help" ]; then
@@ -69,6 +71,7 @@ while IFS= read -r line; do
                         choice_syms=""
                         choice_title=""
                         choice_default=""
+                        choice_depends=""
                         ;;
                 endchoice)
                         finish_help
@@ -77,6 +80,7 @@ while IFS= read -r line; do
                         CHOICE_MEMBERS+=("$choice_syms")
                         CHOICE_TITLE[$ci]="$choice_title"
                         CHOICE_DEFAULT[$ci]="$choice_default"
+                        CHOICE_DEPENDS[$ci]="$choice_depends"
                         ;;
                 prompt)
                         if [ "$in_choice" = "1" ]; then
@@ -91,6 +95,7 @@ while IFS= read -r line; do
                         if [ "$in_choice" = "1" ]; then
                                 [ -n "$choice_syms" ] && choice_syms+=" "
                                 choice_syms+="$cur_sym"
+                                [ -n "$choice_depends" ] && DEPENDS[$cur_sym]="$choice_depends"
                         fi
                         ;;
                 bool)
@@ -106,7 +111,11 @@ while IFS= read -r line; do
                         ;;
                 depends)
                         dep="${rest#on }"
-                        DEPENDS[$cur_sym]="$dep"
+                        if [ "$in_choice" = "1" ]; then
+                                choice_depends="$dep"
+                        else
+                                DEPENDS[$cur_sym]="$dep"
+                        fi
                         ;;
                 help)
                         in_help=1
@@ -152,6 +161,14 @@ for sym in "${ORDER[@]}"; do
         if [ -n "$in_ci" ] && [ -z "${choice_done[$in_ci]+x}" ]; then
                 choice_done[$in_ci]=1
                 read -ra members <<< "${CHOICE_MEMBERS[$in_ci]}"
+
+                if [ -n "${CHOICE_DEPENDS[$in_ci]}" ]; then
+                        cdep="${CHOICE_DEPENDS[$in_ci]}"
+                        if [ "${CONF[$cdep]}" != "y" ]; then
+                                for m in "${members[@]}"; do CONF[$m]="n"; done
+                                continue
+                        fi
+                fi
 
                 # current selection index (1-based)
                 cur_sel=1
