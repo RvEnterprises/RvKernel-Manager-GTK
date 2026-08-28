@@ -3,48 +3,44 @@
 #include "ui/theme/style.h"
 #include "util/log.h"
 
-static GtkWidget *
-find_window(GtkApplication *app)
+static GtkWidget *find_window(GtkApplication *app)
 {
-        GList *windows = gtk_application_get_windows(app);
+	GList *windows = gtk_application_get_windows(app);
 
-        return windows != NULL ? GTK_WIDGET(windows->data) : NULL;
+	return windows != NULL ? GTK_WIDGET(windows->data) : NULL;
 }
 
-GResource *
-icons_get_resource(void);
+GResource *icons_get_resource(void);
 
-static void
-on_activate(GtkApplication *app, gpointer user_data)
+static void on_activate(GtkApplication *app, gpointer user_data)
 {
-        GtkWidget *window;
+	GtkWidget *window;
 
-        (void)user_data;
-        style_init();
-        g_resources_register(icons_get_resource());
-        gtk_icon_theme_add_resource_path(
-                gtk_icon_theme_get_for_display(gdk_display_get_default()),
-                "/com/rve/RvKernelManager/icons/hicolor");
+	(void)user_data;
+	style_init();
+	g_resources_register(icons_get_resource());
+	gtk_icon_theme_add_resource_path(
+		gtk_icon_theme_get_for_display(gdk_display_get_default()),
+		"/com/rve/RvKernelManager/icons/hicolor");
 
-        window = find_window(app);
-        if (window == NULL) {
-                log_debug("no window yet, creating one");
-                window = window_new(app);
-        } else {
-                log_debug("presenting existing window");
-        }
+	window = find_window(app);
+	if (window == NULL) {
+		log_debug("no window yet, creating one");
+		window = window_new(app);
+	} else {
+		log_debug("presenting existing window");
+	}
 
-        gtk_window_present(GTK_WINDOW(window));
+	gtk_window_present(GTK_WINDOW(window));
 }
 
-GtkApplication *
-application_new(void)
+GtkApplication *application_new(void)
 {
-        GtkApplication *app;
+	GtkApplication *app;
 
-        app = gtk_application_new(APP_ID, G_APPLICATION_DEFAULT_FLAGS);
-        log_debug("application %s created", APP_ID);
-        g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
+	app = gtk_application_new(APP_ID, G_APPLICATION_DEFAULT_FLAGS);
+	log_debug("application %s created", APP_ID);
+	g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
 
-        return app;
+	return app;
 }

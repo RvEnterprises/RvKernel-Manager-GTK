@@ -9,9 +9,8 @@ G_BEGIN_DECLS
 #define APP_NAME "RvKernel Manager"
 #define VERSION "1.0.0"
 
-GtkWidget *window_new       (GtkApplication *app);
-void       window_show_toast(GtkWidget   *window,
-                                const gchar *message);
+GtkWidget *window_new(GtkApplication *app);
+void window_show_toast(GtkWidget *window, const gchar *message);
 
 G_END_DECLS
 

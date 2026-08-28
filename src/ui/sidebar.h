@@ -5,9 +5,8 @@
 
 G_BEGIN_DECLS
 
-GtkWidget *sidebar_new (void);
-void       sidebar_set_stack (GtkWidget *sidebar,
-                                 GtkStack  *stack);
+GtkWidget *sidebar_new(void);
+void sidebar_set_stack(GtkWidget *sidebar, GtkStack *stack);
 
 G_END_DECLS
 

@@ -8,284 +8,272 @@
 #include "../../util/sysfs.h"
 
 typedef struct {
-        GtkWidget  *window;
-        GpuCard  *card;
-        GtkWidget *cur_freq_row;
-        GtkWidget *busy_row;
-        GtkWidget *gov_row;
-        GtkWidget *min_row;
-        GtkWidget *max_row;
+	GtkWidget *window;
+	GpuCard *card;
+	GtkWidget *cur_freq_row;
+	GtkWidget *busy_row;
+	GtkWidget *gov_row;
+	GtkWidget *min_row;
+	GtkWidget *max_row;
 } GpuUi;
 
 typedef struct {
-        GpuCard **cards;
-        gsize       n_cards;
-        GPtrArray  *uis;
+	GpuCard **cards;
+	gsize n_cards;
+	GPtrArray *uis;
 } GpuCtx;
 
 static void gpu_ctx_free(GpuCtx *ctx);
 
-static void
-show_write_error(GtkWidget *window, GError **error)
+static void show_write_error(GtkWidget *window, GError **error)
 {
-        gchar *msg = g_strdup_printf("Failed to apply setting: %s",
-                                     window_error_text(error));
-        log_error("gpu page: apply failed: %s", window_error_text(error));
-        window_show_toast(window, msg);
-        g_free(msg);
+	gchar *msg = g_strdup_printf("Failed to apply setting: %s",
+				     window_error_text(error));
+	log_error("gpu page: apply failed: %s", window_error_text(error));
+	window_show_toast(window, msg);
+	g_free(msg);
 }
 
-static void
-on_gov_selected(GtkDropDown *dropdown, GParamSpec *pspec, gpointer user_data)
+static void on_gov_selected(GtkDropDown *dropdown, GParamSpec *pspec,
+			    gpointer user_data)
 {
-        GpuUi *ui = user_data;
-        const gchar *id = option_row_active_id(ui->gov_row);
-        GError *error = NULL;
+	GpuUi *ui = user_data;
+	const gchar *id = option_row_active_id(ui->gov_row);
+	GError *error = NULL;
 
-        (void)dropdown;
-        (void)pspec;
+	(void)dropdown;
+	(void)pspec;
 
-        if (id == NULL)
-                return;
+	if (id == NULL)
+		return;
 
-        if (!devfreq_set_governor(ui->card->devfreq, id, &error))
-                show_write_error(ui->window, &error);
-        g_clear_error(&error);
+	if (!devfreq_set_governor(ui->card->devfreq, id, &error))
+		show_write_error(ui->window, &error);
+	g_clear_error(&error);
 }
 
-static void
-on_min_selected(GtkDropDown *dropdown, GParamSpec *pspec, gpointer user_data)
+static void on_min_selected(GtkDropDown *dropdown, GParamSpec *pspec,
+			    gpointer user_data)
 {
-        GpuUi *ui = user_data;
-        const gchar *id = option_row_active_id(ui->min_row);
-        GError *error = NULL;
+	GpuUi *ui = user_data;
+	const gchar *id = option_row_active_id(ui->min_row);
+	GError *error = NULL;
 
-        (void)dropdown;
-        (void)pspec;
+	(void)dropdown;
+	(void)pspec;
 
-        if (id == NULL)
-                return;
+	if (id == NULL)
+		return;
 
-        if (!devfreq_set_min_freq(ui->card->devfreq,
-                                     g_ascii_strtoll(id, NULL, 10), &error))
-                show_write_error(ui->window, &error);
-        g_clear_error(&error);
+	if (!devfreq_set_min_freq(ui->card->devfreq,
+				  g_ascii_strtoll(id, NULL, 10), &error))
+		show_write_error(ui->window, &error);
+	g_clear_error(&error);
 }
 
-static void
-on_max_selected(GtkDropDown *dropdown, GParamSpec *pspec, gpointer user_data)
+static void on_max_selected(GtkDropDown *dropdown, GParamSpec *pspec,
+			    gpointer user_data)
 {
-        GpuUi *ui = user_data;
-        const gchar *id = option_row_active_id(ui->max_row);
-        GError *error = NULL;
+	GpuUi *ui = user_data;
+	const gchar *id = option_row_active_id(ui->max_row);
+	GError *error = NULL;
 
-        (void)dropdown;
-        (void)pspec;
+	(void)dropdown;
+	(void)pspec;
 
-        if (id == NULL)
-                return;
+	if (id == NULL)
+		return;
 
-        if (!devfreq_set_max_freq(ui->card->devfreq,
-                                     g_ascii_strtoll(id, NULL, 10), &error))
-                show_write_error(ui->window, &error);
-        g_clear_error(&error);
+	if (!devfreq_set_max_freq(ui->card->devfreq,
+				  g_ascii_strtoll(id, NULL, 10), &error))
+		show_write_error(ui->window, &error);
+	g_clear_error(&error);
 }
 
-static void
-fill_devfreq_controls(GpuUi *ui, GtkWidget *card)
+static void fill_devfreq_controls(GpuUi *ui, GtkWidget *card)
 {
-        Devfreq *d = ui->card->devfreq;
-        gint64 *levels = NULL;
-        gsize n_levels = 0;
-        gchar *avail_text;
+	Devfreq *d = ui->card->devfreq;
+	gint64 *levels = NULL;
+	gsize n_levels = 0;
+	gchar *avail_text;
 
-        if (d == NULL)
-                return;
+	if (d == NULL)
+		return;
 
-        if (d->governors[0] != NULL) {
-                GtkWidget *row = option_row_new("Governor");
+	if (d->governors[0] != NULL) {
+		GtkWidget *row = option_row_new("Governor");
 
-                for (gsize i = 0; d->governors[i] != NULL; i++)
-                        option_row_append(row, d->governors[i],
-                                             d->governors[i]);
-                if (d->governor != NULL)
-                        option_row_select_id(row, d->governor);
+		for (gsize i = 0; d->governors[i] != NULL; i++)
+			option_row_append(row, d->governors[i],
+					  d->governors[i]);
+		if (d->governor != NULL)
+			option_row_select_id(row, d->governor);
 
-                g_signal_connect(option_row_dropdown(row),
-                                 "notify::selected",
-                                 G_CALLBACK(on_gov_selected), ui);
-                card_add(card, row);
-                ui->gov_row = row;
-        }
+		g_signal_connect(option_row_dropdown(row), "notify::selected",
+				 G_CALLBACK(on_gov_selected), ui);
+		card_add(card, row);
+		ui->gov_row = row;
+	}
 
-        avail_text = read_trimmed(g_build_filename(
-                d->devfreq_path, "available_frequencies", NULL));
-        if (avail_text != NULL && avail_text[0] != '\0')
-                levels = parse_int_list(avail_text, &n_levels);
-        g_free(avail_text);
+	avail_text = read_trimmed(g_build_filename(
+		d->devfreq_path, "available_frequencies", NULL));
+	if (avail_text != NULL && avail_text[0] != '\0')
+		levels = parse_int_list(avail_text, &n_levels);
+	g_free(avail_text);
 
-        if (levels != NULL && n_levels >= 2) {
-                const struct {
-                        const gchar *title;
-                        const gchar *current;
-                        GCallback cb;
-                        GtkWidget **slot;
-                } specs[] = {
-                        { "Minimum frequency", d->min_freq_hz,
-                          G_CALLBACK(on_min_selected), &ui->min_row },
-                        { "Maximum frequency", d->max_freq_hz,
-                          G_CALLBACK(on_max_selected), &ui->max_row },
-                };
+	if (levels != NULL && n_levels >= 2) {
+		const struct {
+			const gchar *title;
+			const gchar *current;
+			GCallback cb;
+			GtkWidget **slot;
+		} specs[] = {
+			{ "Minimum frequency", d->min_freq_hz,
+			  G_CALLBACK(on_min_selected), &ui->min_row },
+			{ "Maximum frequency", d->max_freq_hz,
+			  G_CALLBACK(on_max_selected), &ui->max_row },
+		};
 
-                for (gint which = 0; which < 2; which++) {
-                        GtkWidget *row = option_row_new(specs[which].title);
+		for (gint which = 0; which < 2; which++) {
+			GtkWidget *row = option_row_new(specs[which].title);
 
-                        for (gsize i = 0; i < n_levels; i++) {
-                                gchar *id =
-                                        g_strdup_printf("%" G_GINT64_FORMAT,
-                                                        levels[i]);
-                                gchar *label = format_hz(levels[i]);
+			for (gsize i = 0; i < n_levels; i++) {
+				gchar *id = g_strdup_printf("%" G_GINT64_FORMAT,
+							    levels[i]);
+				gchar *label = format_hz(levels[i]);
 
-                                option_row_append(row, id, label);
-                                g_free(id);
-                                g_free(label);
-                        }
+				option_row_append(row, id, label);
+				g_free(id);
+				g_free(label);
+			}
 
-                        if (specs[which].current != NULL)
-                                option_row_select_id(
-                                        row, specs[which].current);
+			if (specs[which].current != NULL)
+				option_row_select_id(row, specs[which].current);
 
-                        g_signal_connect(option_row_dropdown(row),
-                                         "notify::selected",
-                                         specs[which].cb, ui);
-                        card_add(card, row);
-                        *specs[which].slot = row;
-                }
-        }
+			g_signal_connect(option_row_dropdown(row),
+					 "notify::selected", specs[which].cb,
+					 ui);
+			card_add(card, row);
+			*specs[which].slot = row;
+		}
+	}
 
-        free(levels);
+	free(levels);
 }
 
-static GtkWidget *
-build_card_widget(GpuCard *info, GpuUi *ui)
+static GtkWidget *build_card_widget(GpuCard *info, GpuUi *ui)
 {
-        GtkWidget *card, *row;
-        gchar *header;
+	GtkWidget *card, *row;
+	gchar *header;
 
-        header = g_strdup_printf("%s (%s)", info->card_name,
-                                 info->vendor_name);
-        card = card_new(header);
-        g_free(header);
+	header = g_strdup_printf("%s (%s)", info->card_name, info->vendor_name);
+	card = card_new(header);
+	g_free(header);
 
-        row = kv_row("Driver");
-        kv_set(row, "%s", info->driver != NULL ? info->driver : "-");
-        card_add(card, row);
+	row = kv_row("Driver");
+	kv_set(row, "%s", info->driver != NULL ? info->driver : "-");
+	card_add(card, row);
 
-        row = kv_row("PCI ID");
-        kv_set(row, "%s", info->pci_id != NULL ? info->pci_id : "-");
-        card_add(card, row);
+	row = kv_row("PCI ID");
+	kv_set(row, "%s", info->pci_id != NULL ? info->pci_id : "-");
+	card_add(card, row);
 
-        if (info->has_busy_percent) {
-                row = kv_row("Utilization");
-                kv_set(row, "%s %%",
-                          info->busy_percent != NULL ? info->busy_percent :
-                                                       "-");
-                card_add(card, row);
-                ui->busy_row = row;
-        }
+	if (info->has_busy_percent) {
+		row = kv_row("Utilization");
+		kv_set(row, "%s %%",
+		       info->busy_percent != NULL ? info->busy_percent : "-");
+		card_add(card, row);
+		ui->busy_row = row;
+	}
 
-        row = kv_row("Current frequency");
-        kv_set(row, "-");
-        card_add(card, row);
-        ui->cur_freq_row = row;
+	row = kv_row("Current frequency");
+	kv_set(row, "-");
+	card_add(card, row);
+	ui->cur_freq_row = row;
 
-        fill_devfreq_controls(ui, card);
+	fill_devfreq_controls(ui, card);
 
-        return card;
+	return card;
 }
 
-static void
-refresh(GtkWidget *page)
+static void refresh(GtkWidget *page)
 {
-        GpuCtx *ctx = g_object_get_data(G_OBJECT(page), "ctx");
+	GpuCtx *ctx = g_object_get_data(G_OBJECT(page), "ctx");
 
-        if (ctx == NULL)
-                return;
+	if (ctx == NULL)
+		return;
 
-        for (gsize i = 0; i < ctx->uis->len; i++) {
-                GpuUi *ui = g_ptr_array_index(ctx->uis, i);
-                Devfreq *d;
+	for (gsize i = 0; i < ctx->uis->len; i++) {
+		GpuUi *ui = g_ptr_array_index(ctx->uis, i);
+		Devfreq *d;
 
-                gpu_card_refresh(ui->card);
+		gpu_card_refresh(ui->card);
 
-                if (ui->busy_row != NULL && ui->card->busy_percent != NULL)
-                        kv_set(ui->busy_row, "%s %%",
-                                  ui->card->busy_percent);
+		if (ui->busy_row != NULL && ui->card->busy_percent != NULL)
+			kv_set(ui->busy_row, "%s %%", ui->card->busy_percent);
 
-                d = ui->card->devfreq;
-                if (d != NULL && d->cur_freq_hz != NULL) {
-                        gint64 hz = g_ascii_strtoll(d->cur_freq_hz, NULL, 10);
-                        gchar *s = format_hz(hz);
+		d = ui->card->devfreq;
+		if (d != NULL && d->cur_freq_hz != NULL) {
+			gint64 hz = g_ascii_strtoll(d->cur_freq_hz, NULL, 10);
+			gchar *s = format_hz(hz);
 
-                        kv_set(ui->cur_freq_row, "%s", s);
-                        g_free(s);
-                } else if (ui->card->cur_clock_note != NULL) {
-                        kv_set(ui->cur_freq_row, "%s",
-                                  ui->card->cur_clock_note);
-                }
-        }
+			kv_set(ui->cur_freq_row, "%s", s);
+			g_free(s);
+		} else if (ui->card->cur_clock_note != NULL) {
+			kv_set(ui->cur_freq_row, "%s",
+			       ui->card->cur_clock_note);
+		}
+	}
 }
 
-GtkWidget *
-page_gpu_new(GtkWidget *window)
+GtkWidget *page_gpu_new(GtkWidget *window)
 {
-        GtkWidget *scrolled, *content, *title;
-        GpuCtx *ctx;
+	GtkWidget *scrolled, *content, *title;
+	GpuCtx *ctx;
 
-        content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 14);
-        gtk_widget_add_css_class(content, "page");
+	content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 14);
+	gtk_widget_add_css_class(content, "page");
 
-        ctx = g_new0(GpuCtx, 1);
-        ctx->uis = g_ptr_array_new_with_free_func(g_free);
-        ctx->cards = gpu_cards(&ctx->n_cards);
-        log_debug("GPU page: %u cards", (guint)ctx->n_cards);
+	ctx = g_new0(GpuCtx, 1);
+	ctx->uis = g_ptr_array_new_with_free_func(g_free);
+	ctx->cards = gpu_cards(&ctx->n_cards);
+	log_debug("GPU page: %u cards", (guint)ctx->n_cards);
 
-        title = gtk_label_new("GPU");
-        gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
-        gtk_widget_add_css_class(title, "title");
-        gtk_box_append(GTK_BOX(content), title);
+	title = gtk_label_new("GPU");
+	gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
+	gtk_widget_add_css_class(title, "title");
+	gtk_box_append(GTK_BOX(content), title);
 
-        if (ctx->n_cards == 0) {
-                GtkWidget *label = gtk_label_new(
-                        "No supported GPU devices found.");
-                gtk_widget_add_css_class(label, "dim-label");
-                gtk_box_append(GTK_BOX(content), label);
-        }
+	if (ctx->n_cards == 0) {
+		GtkWidget *label =
+			gtk_label_new("No supported GPU devices found.");
+		gtk_widget_add_css_class(label, "dim-label");
+		gtk_box_append(GTK_BOX(content), label);
+	}
 
-        for (gsize i = 0; i < ctx->n_cards; i++) {
-                GpuUi *ui = g_new0(GpuUi, 1);
+	for (gsize i = 0; i < ctx->n_cards; i++) {
+		GpuUi *ui = g_new0(GpuUi, 1);
 
-                ui->window = window;
-                ui->card = ctx->cards[i];
+		ui->window = window;
+		ui->card = ctx->cards[i];
 
-                gtk_box_append(GTK_BOX(content),
-                               build_card_widget(ctx->cards[i], ui));
-                g_ptr_array_add(ctx->uis, ui);
-        }
+		gtk_box_append(GTK_BOX(content),
+			       build_card_widget(ctx->cards[i], ui));
+		g_ptr_array_add(ctx->uis, ui);
+	}
 
-        scrolled = page_wrap(content);
-        g_object_set_data_full(G_OBJECT(scrolled), "ctx", ctx,
-                               (GDestroyNotify)gpu_ctx_free);
-        page_set_refresh(scrolled, refresh);
+	scrolled = page_wrap(content);
+	g_object_set_data_full(G_OBJECT(scrolled), "ctx", ctx,
+			       (GDestroyNotify)gpu_ctx_free);
+	page_set_refresh(scrolled, refresh);
 
-        return scrolled;
+	return scrolled;
 }
 
-static void
-gpu_ctx_free(GpuCtx *ctx)
+static void gpu_ctx_free(GpuCtx *ctx)
 {
-        g_clear_pointer(&ctx->uis, g_ptr_array_unref);
-        if (ctx->cards != NULL)
-                gpu_cards_free(ctx->cards, ctx->n_cards);
-        g_free(ctx);
+	g_clear_pointer(&ctx->uis, g_ptr_array_unref);
+	if (ctx->cards != NULL)
+		gpu_cards_free(ctx->cards, ctx->n_cards);
+	g_free(ctx);
 }
